@@ -15,19 +15,40 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*" />
+            <ColumnDefinition Width="5" />
             <ColumnDefinition Width="2*" />
             <ColumnDefinition Width="5" />
             <ColumnDefinition Width="1*" />
         </Grid.ColumnDefinitions>
 
         <!-- Top Bar -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,0,0,10">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="0,0,0,10">
             <Button Content="フォルダを開く..." Command="{Binding SelectFolderCommand}" Padding="10,5" />
             <TextBlock Text="{Binding CurrentFolderPath}" VerticalAlignment="Center" Margin="10,0,0,0" FontWeight="SemiBold" />
         </StackPanel>
 
+        <!-- Folder Tree -->
+        <TreeView Grid.Row="1" Grid.Column="0" 
+                  ItemsSource="{Binding Folders}"
+                  SelectedItemChanged="FolderTreeView_SelectedItemChanged"
+                  Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                    <TextBlock Text="{Binding Name}" />
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="TreeViewItem">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                </Style>
+            </TreeView.ItemContainerStyle>
+        </TreeView>
+
+        <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" />
+
         <!-- Thumbnail Grid -->
-        <ListBox Grid.Row="1" Grid.Column="0" 
+        <ListBox Grid.Row="1" Grid.Column="2" 
                  ItemsSource="{Binding Images}" 
                  SelectedItem="{Binding SelectedImage}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -40,7 +61,6 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Margin="5" Width="120">
-                        <!-- Setting DecodePixelWidth is important for performance on large images, but here we just bind to FilePath and rely on WPF's default decoding. For a real app we need an IValueConverter to load thumbnails efficiently. -->
                         <Image Source="{Binding FilePath}" Width="100" Height="100" Stretch="Uniform" />
                         <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding FileName}" TextAlignment="Center" Margin="0,5,0,0" />
                     </StackPanel>
@@ -48,10 +68,10 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" />
+        <GridSplitter Grid.Row="1" Grid.Column="3" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" />
 
         <!-- Preview and Properties -->
-        <Border Grid.Row="1" Grid.Column="2" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Padding="10">
+        <Border Grid.Row="1" Grid.Column="4" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Padding="10">
             <ScrollViewer>
                 <StackPanel>
                     <TextBlock Text="プレビュー" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />

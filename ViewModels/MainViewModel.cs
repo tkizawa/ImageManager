@@ -21,9 +21,33 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private ImageFile _selectedImage;
 
+        [ObservableProperty]
+        private ObservableCollection<DirectoryNodeViewModel> _folders = new();
+
         public MainViewModel(IFileSystemService fileSystemService)
         {
             _fileSystemService = fileSystemService;
+            LoadDrives();
+        }
+
+        private void LoadDrives()
+        {
+            foreach (var drive in System.IO.DriveInfo.GetDrives())
+            {
+                if (drive.IsReady)
+                {
+                    Folders.Add(new DirectoryNodeViewModel(drive.Name));
+                }
+            }
+        }
+
+        public async Task SelectFolderFromTreeAsync(string folderPath)
+        {
+            if (!string.IsNullOrEmpty(folderPath) && CurrentFolderPath != folderPath)
+            {
+                CurrentFolderPath = folderPath;
+                await LoadImagesAsync(folderPath);
+            }
         }
 
         [RelayCommand]
