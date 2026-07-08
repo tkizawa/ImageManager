@@ -25,10 +25,10 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private ObservableCollection<DirectoryNodeViewModel> _folders = new();
 
-        public MainViewModel(IFileSystemService fileSystemService)
+        public MainViewModel(IFileSystemService fileSystemService, SettingsService settingsService)
         {
             _fileSystemService = fileSystemService;
-            _settingsService = new SettingsService();
+            _settingsService = settingsService;
             LoadDrives();
 
             var settings = _settingsService.Load();

@@ -14,9 +14,10 @@ public partial class App : Application
         base.OnStartup(e);
 
         var fileSystemService = new ImageManager.Services.FileSystemService();
-        var mainViewModel = new ImageManager.ViewModels.MainViewModel(fileSystemService);
+        var settingsService = new ImageManager.Services.SettingsService();
+        var mainViewModel = new ImageManager.ViewModels.MainViewModel(fileSystemService, settingsService);
         
-        var mainWindow = new MainWindow
+        var mainWindow = new MainWindow(settingsService)
         {
             DataContext = mainViewModel
         };
