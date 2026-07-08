@@ -11,6 +11,7 @@ namespace ImageManager.ViewModels
     public partial class MainViewModel : ObservableObject
     {
         private readonly IFileSystemService _fileSystemService;
+        private readonly SettingsService _settingsService;
 
         [ObservableProperty]
         private string _currentFolderPath;
@@ -27,7 +28,48 @@ namespace ImageManager.ViewModels
         public MainViewModel(IFileSystemService fileSystemService)
         {
             _fileSystemService = fileSystemService;
+            _settingsService = new SettingsService();
             LoadDrives();
+
+            var settings = _settingsService.Load();
+            if (!string.IsNullOrEmpty(settings.LastOpenedFolder) && System.IO.Directory.Exists(settings.LastOpenedFolder))
+            {
+                _ = ExpandAndSelectPathAsync(settings.LastOpenedFolder);
+            }
+        }
+
+        private async Task ExpandAndSelectPathAsync(string path)
+        {
+            var parts = path.Split(System.IO.Path.DirectorySeparatorChar, System.StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return;
+            
+            parts[0] += System.IO.Path.DirectorySeparatorChar;
+            
+            ObservableCollection<DirectoryNodeViewModel> currentList = Folders;
+            DirectoryNodeViewModel targetNode = null;
+            string currentPath = "";
+
+            foreach (var part in parts)
+            {
+                currentPath = string.IsNullOrEmpty(currentPath) ? part : System.IO.Path.Combine(currentPath, part);
+                var node = currentList.FirstOrDefault(n => n.Name.Equals(part, System.StringComparison.OrdinalIgnoreCase) || n.FullPath.Equals(currentPath, System.StringComparison.OrdinalIgnoreCase));
+                if (node == null) break;
+
+                targetNode = node;
+                node.IsExpanded = true;
+                currentList = node.Children;
+            }
+
+            if (targetNode != null)
+            {
+                targetNode.IsSelected = true;
+                // TreeView item selection logic will trigger the SelectedItemChanged event, 
+                // but just in case, we also explicitly load the images here if the current path isn't set yet.
+                if (string.IsNullOrEmpty(CurrentFolderPath))
+                {
+                    await SelectFolderFromTreeAsync(targetNode.FullPath);
+                }
+            }
         }
 
         private void LoadDrives()
@@ -46,6 +88,10 @@ namespace ImageManager.ViewModels
             if (!string.IsNullOrEmpty(folderPath) && CurrentFolderPath != folderPath)
             {
                 CurrentFolderPath = folderPath;
+                var settings = _settingsService.Load();
+                settings.LastOpenedFolder = folderPath;
+                _settingsService.Save(settings);
+                
                 await LoadImagesAsync(folderPath);
             }
         }
@@ -57,7 +103,12 @@ namespace ImageManager.ViewModels
             if (!string.IsNullOrEmpty(folder))
             {
                 CurrentFolderPath = folder;
+                var settings = _settingsService.Load();
+                settings.LastOpenedFolder = folder;
+                _settingsService.Save(settings);
+                
                 await LoadImagesAsync(folder);
+                _ = ExpandAndSelectPathAsync(folder);
             }
         }
 

@@ -14,6 +14,9 @@ namespace ImageManager.ViewModels
         private string _name = string.Empty;
 
         [ObservableProperty]
+        private bool _isSelected;
+
+        [ObservableProperty]
         private ObservableCollection<DirectoryNodeViewModel> _children = new();
 
         private bool _isExpanded;
