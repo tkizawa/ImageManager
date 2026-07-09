@@ -1,20 +1,30 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.Win32;
+using System.Threading.Tasks;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace ImageManager.Services
 {
     public class FileSystemService : IFileSystemService
     {
-        public string SelectFolder()
+        public async Task<string> SelectFolderAsync()
         {
-            var dialog = new OpenFolderDialog();
-            if (dialog.ShowDialog() == true)
+            var folderPicker = new FolderPicker();
+            folderPicker.SuggestedStartLocation = PickerLocationId.Desktop;
+            folderPicker.FileTypeFilter.Add("*");
+
+            var window = App.MainWindow;
+            if (window != null)
             {
-                return dialog.FolderName;
+                var hwnd = WindowNative.GetWindowHandle(window);
+                InitializeWithWindow.Initialize(folderPicker, hwnd);
             }
-            return null;
+
+            var folder = await folderPicker.PickSingleFolderAsync();
+            return folder?.Path;
         }
 
         public IEnumerable<string> GetImageFiles(string folderPath)

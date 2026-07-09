@@ -1,28 +1,34 @@
-using System.Configuration;
-using System.Data;
-using System.Windows;
+using Microsoft.UI.Xaml;
 
 namespace ImageManager;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
+    public static MainWindow MainWindow { get; private set; }
 
-        var fileSystemService = new ImageManager.Services.FileSystemService();
-        var settingsService = new ImageManager.Services.SettingsService();
-        var mainViewModel = new ImageManager.ViewModels.MainViewModel(fileSystemService, settingsService);
-        
-        var mainWindow = new MainWindow(settingsService)
+    public App()
+    {
+        this.InitializeComponent();
+        this.UnhandledException += (s, e) =>
         {
-            DataContext = mainViewModel
+            System.IO.File.WriteAllText("crash.log", e.Exception?.ToString() + "\n" + e.Message);
         };
-        
-        mainWindow.Show();
+    }
+
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        try 
+        {
+            var fileSystemService = new ImageManager.Services.FileSystemService();
+            var settingsService = new ImageManager.Services.SettingsService();
+            var mainViewModel = new ImageManager.ViewModels.MainViewModel(fileSystemService, settingsService);
+            
+            MainWindow = new MainWindow(settingsService, mainViewModel);
+            MainWindow.Activate();
+        }
+        catch (System.Exception ex)
+        {
+            System.IO.File.WriteAllText("crash.log", ex.ToString());
+        }
     }
 }
-

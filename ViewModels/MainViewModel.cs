@@ -25,10 +25,13 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private ObservableCollection<DirectoryNodeViewModel> _folders = new();
 
+        private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
+
         public MainViewModel(IFileSystemService fileSystemService, SettingsService settingsService)
         {
             _fileSystemService = fileSystemService;
             _settingsService = settingsService;
+            _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             LoadDrives();
 
             var settings = _settingsService.Load();
@@ -99,7 +102,7 @@ namespace ImageManager.ViewModels
         [RelayCommand]
         private async Task SelectFolderAsync()
         {
-            var folder = _fileSystemService.SelectFolder();
+            var folder = await _fileSystemService.SelectFolderAsync();
             if (!string.IsNullOrEmpty(folder))
             {
                 CurrentFolderPath = folder;
@@ -123,7 +126,7 @@ namespace ImageManager.ViewModels
                 var files = _fileSystemService.GetImageFiles(folderPath).ToList();
                 var newImages = files.Select(f => new ImageFile(f)).ToList();
                 
-                App.Current.Dispatcher.Invoke(() => 
+                _dispatcherQueue?.TryEnqueue(() => 
                 {
                     foreach (var img in newImages)
                     {

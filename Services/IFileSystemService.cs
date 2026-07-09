@@ -1,10 +1,11 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace ImageManager.Services
 {
     public interface IFileSystemService
     {
-        string SelectFolder();
+        Task<string> SelectFolderAsync();
         IEnumerable<string> GetImageFiles(string folderPath);
     }
 }

@@ -1,76 +1,90 @@
-using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using System;
+using WinRT.Interop;
+using Microsoft.UI;
 
 namespace ImageManager;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
     private readonly Services.SettingsService _settingsService;
+    public ViewModels.MainViewModel ViewModel { get; }
+    
+    private AppWindow _appWindow;
 
     public MainWindow()
     {
-        InitializeComponent();
+        try {
+            InitializeComponent();
+            
+            // Get AppWindow
+            IntPtr hWnd = WindowNative.GetWindowHandle(this);
+            WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
+            _appWindow = AppWindow.GetFromWindowId(windowId);
+            
+            _appWindow.Title = "Image Manager";
+        } catch (System.Exception ex) {
+            System.IO.File.WriteAllText("crash_main.log", ex.ToString());
+        }
     }
 
-    public MainWindow(Services.SettingsService settingsService) : this()
+    public MainWindow(Services.SettingsService settingsService, ViewModels.MainViewModel mainViewModel) : this()
     {
         _settingsService = settingsService;
-        Loaded += MainWindow_Loaded;
-        Closing += MainWindow_Closing;
+        ViewModel = mainViewModel;
+        RootGrid.DataContext = ViewModel;
+
+        RootGrid.Loaded += RootGrid_Loaded;
+        this.Closed += MainWindow_Closed;
     }
 
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         var settings = _settingsService.Load();
-        if (!double.IsNaN(settings.WindowWidth) && settings.WindowWidth > 0)
-            Width = settings.WindowWidth;
-        if (!double.IsNaN(settings.WindowHeight) && settings.WindowHeight > 0)
-            Height = settings.WindowHeight;
+        
+        if (!double.IsNaN(settings.WindowWidth) && settings.WindowWidth > 0 &&
+            !double.IsNaN(settings.WindowHeight) && settings.WindowHeight > 0)
+        {
+            _appWindow.Resize(new Windows.Graphics.SizeInt32((int)settings.WindowWidth, (int)settings.WindowHeight));
+        }
+        
         if (!double.IsNaN(settings.WindowLeft) && !double.IsNaN(settings.WindowTop))
         {
-            Left = settings.WindowLeft;
-            Top = settings.WindowTop;
+            _appWindow.Move(new Windows.Graphics.PointInt32((int)settings.WindowLeft, (int)settings.WindowTop));
         }
-        WindowState = (WindowState)settings.WindowState;
+
+        if (settings.WindowState == 2) // Maximized
+        {
+            if (_appWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.Maximize();
+            }
+        }
     }
 
-    private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         var settings = _settingsService.Load();
-        settings.WindowState = (int)WindowState;
-        if (WindowState == WindowState.Normal)
+        
+        if (_appWindow.Presenter is OverlappedPresenter presenter)
         {
-            settings.WindowWidth = Width;
-            settings.WindowHeight = Height;
-            settings.WindowLeft = Left;
-            settings.WindowTop = Top;
+            settings.WindowState = presenter.State == OverlappedPresenterState.Maximized ? 2 : 0;
+            settings.WindowWidth = _appWindow.Size.Width;
+            settings.WindowHeight = _appWindow.Size.Height;
+            settings.WindowLeft = _appWindow.Position.X;
+            settings.WindowTop = _appWindow.Position.Y;
         }
-        else
-        {
-            settings.WindowWidth = RestoreBounds.Width;
-            settings.WindowHeight = RestoreBounds.Height;
-            settings.WindowLeft = RestoreBounds.Left;
-            settings.WindowTop = RestoreBounds.Top;
-        }
+        
         _settingsService.Save(settings);
     }
 
-    private async void FolderTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    private async void FolderTreeView_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
-        if (e.NewValue is ViewModels.DirectoryNodeViewModel node && DataContext is ViewModels.MainViewModel vm)
+        if (args.InvokedItem is ViewModels.DirectoryNodeViewModel node)
         {
-            await vm.SelectFolderFromTreeAsync(node.FullPath);
+            await ViewModel.SelectFolderFromTreeAsync(node.FullPath);
         }
     }
 }

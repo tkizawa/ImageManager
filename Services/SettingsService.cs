@@ -17,6 +17,11 @@ namespace ImageManager.Services
             _settingsFilePath = Path.Combine(appFolder, "settings.json");
         }
 
+        private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+        {
+            NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
+        };
+
         public AppSettings Load()
         {
             if (File.Exists(_settingsFilePath))
@@ -24,7 +29,7 @@ namespace ImageManager.Services
                 try
                 {
                     var json = File.ReadAllText(_settingsFilePath);
-                    return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
                 }
                 catch { }
             }
@@ -35,7 +40,7 @@ namespace ImageManager.Services
         {
             try
             {
-                var json = JsonSerializer.Serialize(settings);
+                var json = JsonSerializer.Serialize(settings, _jsonOptions);
                 File.WriteAllText(_settingsFilePath, json);
             }
             catch { }
