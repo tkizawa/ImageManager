@@ -14,13 +14,21 @@ namespace ImageManager.ViewModels
         private readonly SettingsService _settingsService;
 
         [ObservableProperty]
-        private string _currentFolderPath;
+        private string _currentFolderPath = string.Empty;
 
         [ObservableProperty]
         private ObservableCollection<ImageFile> _images = new();
 
         [ObservableProperty]
-        private ImageFile _selectedImage;
+        private ImageFile? _selectedImage;
+
+        partial void OnSelectedImageChanged(ImageFile? value)
+        {
+            if (value != null)
+            {
+                _ = value.LoadExifAsync();
+            }
+        }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ThumbnailPanelWidth))]
@@ -55,7 +63,7 @@ namespace ImageManager.ViewModels
             parts[0] += System.IO.Path.DirectorySeparatorChar;
             
             ObservableCollection<DirectoryNodeViewModel> currentList = Folders;
-            DirectoryNodeViewModel targetNode = null;
+            DirectoryNodeViewModel? targetNode = null;
             string currentPath = "";
 
             foreach (var part in parts)

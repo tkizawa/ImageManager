@@ -24,7 +24,7 @@ namespace ImageManager.Services
             }
 
             var folder = await folderPicker.PickSingleFolderAsync();
-            return folder?.Path;
+            return folder?.Path ?? string.Empty;
         }
 
         public IEnumerable<string> GetImageFiles(string folderPath)

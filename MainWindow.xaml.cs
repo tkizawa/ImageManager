@@ -9,10 +9,10 @@ namespace ImageManager;
 
 public partial class MainWindow : Window
 {
-    private readonly Services.SettingsService _settingsService;
-    public ViewModels.MainViewModel ViewModel { get; }
+    private readonly Services.SettingsService _settingsService = null!;
+    public ViewModels.MainViewModel ViewModel { get; } = null!;
     
-    private AppWindow _appWindow;
+    private AppWindow _appWindow = null!;
 
     public MainWindow()
     {

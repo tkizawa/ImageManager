@@ -81,6 +81,13 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="ファイル名:" FontWeight="SemiBold" Margin="0,0,10,5" />
@@ -89,8 +96,30 @@
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="サイズ (Bytes):" FontWeight="SemiBold" Margin="0,0,10,5" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedImage.FileSize}" Margin="0,0,0,5" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="作成日時:" FontWeight="SemiBold" Margin="0,0,10,5" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="ファイル作成日時:" FontWeight="SemiBold" Margin="0,0,10,5" />
                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedImage.CreationTime}" Margin="0,0,0,5" />
+                        
+                        <!-- EXIF Info -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="撮影日:" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedImage.DateTaken}" Margin="0,10,0,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="カメラ:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedImage.CameraModel}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="レンズ:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedImage.Lens}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="F値:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedImage.FNumber}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="露出時間:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedImage.ExposureTime}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="ISO:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedImage.IsoSpeed}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
+                        
+                        <TextBlock Grid.Row="9" Grid.Column="0" Text="焦点距離:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedImage.FocalLength}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
                     </Grid>
                 </StackPanel>
             </ScrollViewer>

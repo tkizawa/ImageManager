@@ -4,7 +4,7 @@ namespace ImageManager;
 
 public partial class App : Application
 {
-    public static MainWindow MainWindow { get; private set; }
+    public static MainWindow MainWindow { get; private set; } = null!;
 
     public App()
     {

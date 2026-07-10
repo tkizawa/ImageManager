@@ -16,7 +16,7 @@ namespace ImageManager.Converters
                 }
                 catch { }
             }
-            return null;
+            return null!;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
