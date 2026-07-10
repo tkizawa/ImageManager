@@ -41,6 +41,9 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private ObservableCollection<DirectoryNodeViewModel> _folders = new();
 
+        [ObservableProperty]
+        private ObservableCollection<string> _favoriteFolders = new();
+
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
 
         public MainViewModel(IFileSystemService fileSystemService, SettingsService settingsService)
@@ -54,6 +57,15 @@ namespace ImageManager.ViewModels
         public async Task InitializeAsync()
         {
             var settings = _settingsService.Load();
+            
+            if (settings.FavoriteFolders != null)
+            {
+                foreach (var folder in settings.FavoriteFolders)
+                {
+                    FavoriteFolders.Add(folder);
+                }
+            }
+
             if (!string.IsNullOrEmpty(settings.LastOpenedFolder) && System.IO.Directory.Exists(settings.LastOpenedFolder))
             {
                 await ExpandAndSelectPathAsync(settings.LastOpenedFolder);
@@ -155,6 +167,46 @@ namespace ImageManager.ViewModels
                     }
                 });
             });
+        }
+
+        [RelayCommand]
+        private void AddFavoriteFolder(DirectoryNodeViewModel? node)
+        {
+            if (node != null && !FavoriteFolders.Contains(node.FullPath))
+            {
+                FavoriteFolders.Add(node.FullPath);
+                SaveFavorites();
+            }
+        }
+
+        [RelayCommand]
+        private void RemoveFavoriteFolder(string? folderPath)
+        {
+            if (!string.IsNullOrEmpty(folderPath) && FavoriteFolders.Contains(folderPath))
+            {
+                FavoriteFolders.Remove(folderPath);
+                SaveFavorites();
+            }
+        }
+
+        [RelayCommand]
+        private async Task SelectFavoriteFolderAsync(string? folderPath)
+        {
+            if (!string.IsNullOrEmpty(folderPath) && System.IO.Directory.Exists(folderPath))
+            {
+                // 画像一覧を直接更新する
+                await SelectFolderFromTreeAsync(folderPath);
+                
+                // ツリービュー側の選択状態の同期を試みる（バックグラウンド）
+                _ = ExpandAndSelectPathAsync(folderPath);
+            }
+        }
+
+        private void SaveFavorites()
+        {
+            var settings = _settingsService.Load();
+            settings.FavoriteFolders = FavoriteFolders.ToList();
+            _settingsService.Save(settings);
         }
     }
 }

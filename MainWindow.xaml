@@ -26,19 +26,58 @@
             <TextBlock Text="{Binding CurrentFolderPath}" VerticalAlignment="Center" Margin="10,0,0,0" FontWeight="SemiBold" />
         </StackPanel>
 
-        <!-- Folder Tree -->
-        <TreeView Grid.Row="1" Grid.Column="0" x:Name="FolderTreeView"
-                  ItemsSource="{Binding Folders}"
-                  ItemInvoked="FolderTreeView_ItemInvoked"
-                  Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
-            <TreeView.ItemTemplate>
-                <DataTemplate>
-                    <TreeViewItem ItemsSource="{Binding Children}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
-                        <TextBlock Text="{Binding Name}" />
-                    </TreeViewItem>
-                </DataTemplate>
-            </TreeView.ItemTemplate>
-        </TreeView>
+        <!-- Left Pane (Tabs) -->
+        <TabView Grid.Row="1" Grid.Column="0" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent" Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
+            <!-- フォルダタブ (ツリー) -->
+            <TabViewItem Header="フォルダ" IsClosable="False">
+                <TreeView x:Name="FolderTreeView"
+                          ItemsSource="{Binding Folders}"
+                          ItemInvoked="FolderTreeView_ItemInvoked">
+                    <TreeView.ItemTemplate>
+                        <DataTemplate>
+                            <TreeViewItem ItemsSource="{Binding Children}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                <TextBlock Text="{Binding Name}">
+                                    <TextBlock.ContextFlyout>
+                                        <MenuFlyout>
+                                            <MenuFlyoutItem Text="お気に入りに追加" 
+                                                            Click="AddFavoriteFolder_Click" 
+                                                            Tag="{Binding}" />
+                                        </MenuFlyout>
+                                    </TextBlock.ContextFlyout>
+                                </TextBlock>
+                            </TreeViewItem>
+                        </DataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </TabViewItem>
+
+            <!-- お気に入りタブ -->
+            <TabViewItem Header="お気に入り" IsClosable="False">
+                <ListView ItemsSource="{Binding FavoriteFolders}" 
+                          SelectionMode="Single"
+                          IsItemClickEnabled="True"
+                          ItemClick="FavoriteListView_ItemClick">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Padding="0,5">
+                                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis">
+                                    <TextBlock.ContextFlyout>
+                                        <MenuFlyout>
+                                            <MenuFlyoutItem Text="開く" 
+                                                            Click="OpenFavoriteFolder_Click" 
+                                                            Tag="{Binding}" />
+                                            <MenuFlyoutItem Text="お気に入りから削除" 
+                                                            Click="RemoveFavoriteFolder_Click" 
+                                                            Tag="{Binding}" />
+                                        </MenuFlyout>
+                                    </TextBlock.ContextFlyout>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </TabViewItem>
+        </TabView>
 
         <!-- Splitter 1 -->
         <Thumb Grid.Row="1" Grid.Column="1" Width="11" x:Name="TreeSplitter" Background="Transparent" DragDelta="TreeSplitter_DragDelta" Loaded="Splitter_Loaded" />

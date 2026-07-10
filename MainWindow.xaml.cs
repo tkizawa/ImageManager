@@ -119,6 +119,41 @@ public partial class MainWindow : Window
         }
     }
 
+    private void FavoriteListView_ItemClick(object sender, Microsoft.UI.Xaml.Controls.ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is string folderPath)
+        {
+            if (ViewModel.SelectFavoriteFolderCommand.CanExecute(folderPath))
+            {
+                ViewModel.SelectFavoriteFolderCommand.Execute(folderPath);
+            }
+        }
+    }
+
+    private void AddFavoriteFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is ViewModels.DirectoryNodeViewModel node)
+        {
+            ViewModel.AddFavoriteFolderCommand.Execute(node);
+        }
+    }
+
+    private void OpenFavoriteFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is string folderPath)
+        {
+            ViewModel.SelectFavoriteFolderCommand.Execute(folderPath);
+        }
+    }
+
+    private void RemoveFavoriteFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is string folderPath)
+        {
+            ViewModel.RemoveFavoriteFolderCommand.Execute(folderPath);
+        }
+    }
+
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool EnableWindow(IntPtr hWnd, bool bEnable);
 
