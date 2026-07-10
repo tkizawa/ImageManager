@@ -11,5 +11,10 @@ namespace ImageManager.Models
         public string TreeColumnWidth { get; set; } = "1*";
         public string ThumbnailsColumnWidth { get; set; } = "2*";
         public string PreviewColumnWidth { get; set; } = "1*";
+
+        public double ImageWindowWidth { get; set; } = 1024;
+        public double ImageWindowHeight { get; set; } = 768;
+        public double ImageWindowLeft { get; set; } = double.NaN;
+        public double ImageWindowTop { get; set; } = double.NaN;
     }
 }

@@ -87,6 +87,53 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ThumbnailGridView_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    {
+        if (ThumbnailGridView.SelectedItem is Models.ImageFile selectedImage)
+        {
+            e.Handled = true;
+
+            var imageWindow = new ImageWindow(selectedImage, _settingsService);
+            IntPtr mainHWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            IntPtr imageHWnd = WinRT.Interop.WindowNative.GetWindowHandle(imageWindow);
+
+            // メインウィンドウを無効化（モーダル動作）
+            EnableWindow(mainHWnd, false);
+
+            imageWindow.Closed += (s, ev) => 
+            {
+                // ウィンドウが閉じたらメインウィンドウを有効化し、最前面に戻す
+                EnableWindow(mainHWnd, true);
+                SetForegroundWindow(mainHWnd);
+            };
+
+            // メインウィンドウでのイベント伝播とフォーカス処理が完全に終了するのを待つ
+            await System.Threading.Tasks.Task.Delay(50);
+
+            imageWindow.Activate();
+            
+            // 別ウィンドウを強制的に最前面に出す
+            SetWindowPos(imageHWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            SetWindowPos(imageHWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            SetForegroundWindow(imageHWnd);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool EnableWindow(IntPtr hWnd, bool bEnable);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+    
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+    
+    private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+    private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_SHOWWINDOW = 0x0040;
+
     private GridLength ParseGridLength(string value, GridLength fallback)
     {
         if (string.IsNullOrEmpty(value)) return fallback;

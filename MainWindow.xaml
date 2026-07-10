@@ -47,6 +47,7 @@
         <GridView Grid.Row="1" Grid.Column="2" x:Name="ThumbnailGridView"
                   ItemsSource="{Binding Images}" 
                   SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
+                  DoubleTapped="ThumbnailGridView_DoubleTapped"
                   Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
             <GridView.ItemTemplate>
                 <DataTemplate>
