@@ -93,7 +93,7 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
 
-            var imageWindow = new ImageWindow(selectedImage, _settingsService);
+            var imageWindow = new ImageWindow(ViewModel, _settingsService);
             IntPtr mainHWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             IntPtr imageHWnd = WinRT.Interop.WindowNative.GetWindowHandle(imageWindow);
 

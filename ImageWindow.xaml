@@ -8,10 +8,25 @@
     mc:Ignorable="d">
 
     <Grid Background="#1E1E1E">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Right" Invoked="NextImage_Invoked" />
+            <KeyboardAccelerator Key="Left" Invoked="PreviousImage_Invoked" />
+            <KeyboardAccelerator Key="Escape" Invoked="CloseWindow_Invoked" />
+        </Grid.KeyboardAccelerators>
+        
         <Image x:Name="FullImage" 
                Stretch="Uniform" 
                HorizontalAlignment="Center" 
                VerticalAlignment="Center"
-               Margin="10"/>
+               Margin="10"
+               PointerWheelChanged="Image_PointerWheelChanged"
+               PointerPressed="Image_PointerPressed"
+               PointerMoved="Image_PointerMoved"
+               PointerReleased="Image_PointerReleased"
+               PointerCanceled="Image_PointerReleased">
+            <Image.RenderTransform>
+                <CompositeTransform x:Name="ImageTransform" />
+            </Image.RenderTransform>
+        </Image>
     </Grid>
 </Window>
