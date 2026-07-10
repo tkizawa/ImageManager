@@ -22,6 +22,8 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private ImageFile? _selectedImage;
 
+        public event System.EventHandler<DirectoryNodeViewModel>? FolderSelectedEvent;
+
         partial void OnSelectedImageChanged(ImageFile? value)
         {
             if (value != null)
@@ -47,11 +49,14 @@ namespace ImageManager.ViewModels
             _settingsService = settingsService;
             _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             LoadDrives();
+        }
 
+        public async Task InitializeAsync()
+        {
             var settings = _settingsService.Load();
             if (!string.IsNullOrEmpty(settings.LastOpenedFolder) && System.IO.Directory.Exists(settings.LastOpenedFolder))
             {
-                _ = ExpandAndSelectPathAsync(settings.LastOpenedFolder);
+                await ExpandAndSelectPathAsync(settings.LastOpenedFolder);
             }
         }
 
@@ -80,6 +85,8 @@ namespace ImageManager.ViewModels
             if (targetNode != null)
             {
                 targetNode.IsSelected = true;
+                FolderSelectedEvent?.Invoke(this, targetNode);
+                
                 // TreeView item selection logic will trigger the SelectedItemChanged event, 
                 // but just in case, we also explicitly load the images here if the current path isn't set yet.
                 if (string.IsNullOrEmpty(CurrentFolderPath))

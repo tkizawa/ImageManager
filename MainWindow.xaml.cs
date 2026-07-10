@@ -41,6 +41,27 @@ public partial class MainWindow : Window
 
         // Handle Ctrl + Wheel
         RootGrid.AddHandler(UIElement.PointerWheelChangedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerWheelChanged), true);
+        
+        ViewModel.FolderSelectedEvent += async (s, node) => 
+        {
+            await System.Threading.Tasks.Task.Delay(100);
+            FolderTreeView.SelectedItem = node;
+
+            // Retry for up to 10 times to let the UI generate the TreeViewItem
+            for (int i = 0; i < 10; i++)
+            {
+                FolderTreeView.UpdateLayout();
+                var container = FolderTreeView.ContainerFromItem(node) as TreeViewItem;
+                if (container != null)
+                {
+                    // Focus and scroll into view
+                    container.Focus(FocusState.Programmatic);
+                    container.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5 });
+                    break;
+                }
+                await System.Threading.Tasks.Task.Delay(200);
+            }
+        };
     }
 
     private void ThumbnailGridView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
@@ -154,6 +175,8 @@ public partial class MainWindow : Window
         RootGrid.ColumnDefinitions[0].Width = ParseGridLength(settings.TreeColumnWidth, new GridLength(1, GridUnitType.Star));
         RootGrid.ColumnDefinitions[2].Width = ParseGridLength(settings.ThumbnailsColumnWidth, new GridLength(2, GridUnitType.Star));
         RootGrid.ColumnDefinitions[4].Width = ParseGridLength(settings.PreviewColumnWidth, new GridLength(1, GridUnitType.Star));
+
+        _ = ViewModel.InitializeAsync();
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
