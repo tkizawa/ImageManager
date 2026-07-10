@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="using:ImageManager"
         xmlns:viewmodels="using:ImageManager.ViewModels"
-        xmlns:sizers="using:CommunityToolkit.WinUI.Controls"
+        xmlns:controls="using:CommunityToolkit.WinUI.Controls"
         mc:Ignorable="d">
     <Grid Margin="10" x:Name="RootGrid" Background="#F5F5F5">
         <Grid.RowDefinitions>
@@ -40,20 +40,29 @@
             </TreeView.ItemTemplate>
         </TreeView>
 
+        <!-- Splitter 1 -->
+        <Thumb Grid.Row="1" Grid.Column="1" Width="11" x:Name="TreeSplitter" Background="Transparent" DragDelta="TreeSplitter_DragDelta" Loaded="Splitter_Loaded" />
+
         <!-- Thumbnail Grid -->
-        <GridView Grid.Row="1" Grid.Column="2" 
+        <GridView Grid.Row="1" Grid.Column="2" x:Name="ThumbnailGridView"
                   ItemsSource="{Binding Images}" 
                   SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
                   Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
             <GridView.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel Margin="5" Width="120">
-                        <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" Width="100" Height="100" Stretch="Uniform" />
+                    <StackPanel Margin="5" Width="{Binding DataContext.ThumbnailPanelWidth, ElementName=RootGrid}">
+                        <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" 
+                               Width="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
+                               Height="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
+                               Stretch="Uniform" />
                         <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding FileName}" TextAlignment="Center" Margin="0,5,0,0" />
                     </StackPanel>
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
+        
+        <!-- Splitter 2 -->
+        <Thumb Grid.Row="1" Grid.Column="3" Width="11" x:Name="PreviewSplitter" Background="Transparent" DragDelta="PreviewSplitter_DragDelta" Loaded="Splitter_Loaded" />
 
         <!-- Preview and Properties -->
         <Border Grid.Row="1" Grid.Column="4" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Padding="10">

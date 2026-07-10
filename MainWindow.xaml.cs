@@ -38,6 +38,94 @@ public partial class MainWindow : Window
 
         RootGrid.Loaded += RootGrid_Loaded;
         this.Closed += MainWindow_Closed;
+
+        // Handle Ctrl + Wheel
+        RootGrid.AddHandler(UIElement.PointerWheelChangedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerWheelChanged), true);
+    }
+
+    private void ThumbnailGridView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        var state = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+        var isCtrlPressed = (state & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+        if (isCtrlPressed)
+        {
+            e.Handled = true;
+
+            var properties = e.GetCurrentPoint((UIElement)sender).Properties;
+            int delta = properties.MouseWheelDelta;
+
+            if (delta > 0)
+            {
+                ViewModel.ThumbnailSize = System.Math.Clamp(ViewModel.ThumbnailSize + 20, 50, 500);
+            }
+            else if (delta < 0)
+            {
+                ViewModel.ThumbnailSize = System.Math.Clamp(ViewModel.ThumbnailSize - 20, 50, 500);
+            }
+        }
+    }
+
+    private GridLength ParseGridLength(string value, GridLength fallback)
+    {
+        if (string.IsNullOrEmpty(value)) return fallback;
+        if (value.EndsWith("*"))
+        {
+            if (double.TryParse(value.TrimEnd('*'), out double starVal))
+                return new GridLength(starVal, GridUnitType.Star);
+            return new GridLength(1, GridUnitType.Star);
+        }
+        if (double.TryParse(value, out double pxVal))
+            return new GridLength(pxVal, GridUnitType.Pixel);
+        return fallback;
+    }
+
+    private string SerializeGridLength(GridLength length)
+    {
+        if (length.IsStar) return $"{length.Value}*";
+        if (length.IsAbsolute) return length.Value.ToString();
+        return "Auto";
+    }
+
+    private void Splitter_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Microsoft.UI.Xaml.Controls.Primitives.Thumb thumb)
+        {
+            var prop = typeof(UIElement).GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            if (prop != null)
+            {
+                prop.SetValue(thumb, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
+            }
+        }
+    }
+
+    private void TreeSplitter_DragDelta(object sender, Microsoft.UI.Xaml.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        var col = RootGrid.ColumnDefinitions[0];
+        double newWidth = col.ActualWidth + e.HorizontalChange;
+        if (newWidth > 50) // Minimum width
+        {
+            col.Width = new GridLength(newWidth, GridUnitType.Pixel);
+            // Change the middle column to Star sizing if it was fixed, so that it can absorb space
+            if (RootGrid.ColumnDefinitions[2].Width.IsAbsolute)
+            {
+                RootGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
+            }
+        }
+    }
+
+    private void PreviewSplitter_DragDelta(object sender, Microsoft.UI.Xaml.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        var col = RootGrid.ColumnDefinitions[4];
+        double newWidth = col.ActualWidth - e.HorizontalChange;
+        if (newWidth > 50) // Minimum width
+        {
+            col.Width = new GridLength(newWidth, GridUnitType.Pixel);
+            if (RootGrid.ColumnDefinitions[2].Width.IsAbsolute)
+            {
+                RootGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
+            }
+        }
     }
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)
@@ -62,6 +150,10 @@ public partial class MainWindow : Window
                 presenter.Maximize();
             }
         }
+
+        RootGrid.ColumnDefinitions[0].Width = ParseGridLength(settings.TreeColumnWidth, new GridLength(1, GridUnitType.Star));
+        RootGrid.ColumnDefinitions[2].Width = ParseGridLength(settings.ThumbnailsColumnWidth, new GridLength(2, GridUnitType.Star));
+        RootGrid.ColumnDefinitions[4].Width = ParseGridLength(settings.PreviewColumnWidth, new GridLength(1, GridUnitType.Star));
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
@@ -77,6 +169,10 @@ public partial class MainWindow : Window
             settings.WindowTop = _appWindow.Position.Y;
         }
         
+        settings.TreeColumnWidth = SerializeGridLength(RootGrid.ColumnDefinitions[0].Width);
+        settings.ThumbnailsColumnWidth = SerializeGridLength(RootGrid.ColumnDefinitions[2].Width);
+        settings.PreviewColumnWidth = SerializeGridLength(RootGrid.ColumnDefinitions[4].Width);
+
         _settingsService.Save(settings);
     }
 

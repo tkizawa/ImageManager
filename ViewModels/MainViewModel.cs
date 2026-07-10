@@ -23,6 +23,12 @@ namespace ImageManager.ViewModels
         private ImageFile _selectedImage;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ThumbnailPanelWidth))]
+        private double _thumbnailSize = 100;
+
+        public double ThumbnailPanelWidth => ThumbnailSize + 20;
+
+        [ObservableProperty]
         private ObservableCollection<DirectoryNodeViewModel> _folders = new();
 
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
