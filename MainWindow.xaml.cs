@@ -154,6 +154,105 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OpenWithPhotos_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is Models.ImageFile imageFile)
+        {
+            try
+            {
+                var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(imageFile.FilePath);
+                var options = new Windows.System.LauncherOptions
+                {
+                    TargetApplicationPackageFamilyName = "Microsoft.Windows.Photos_8wekyb3d8bbwe"
+                };
+                await Windows.System.Launcher.LaunchFileAsync(file, options);
+            }
+            catch (System.Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to open with Photos: {ex.Message}");
+            }
+        }
+    }
+
+    private void CopyFilePath_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is Models.ImageFile imageFile)
+        {
+            string path = imageFile.FilePath;
+            string url = TryGetSharePointOrOneDriveUrl(path);
+            
+            var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dataPackage.SetText(url ?? path);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+        }
+    }
+
+    private string TryGetSharePointOrOneDriveUrl(string localPath)
+    {
+        try
+        {
+            string registryKey = @"Software\SyncEngines\Providers\OneDrive";
+            using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(registryKey))
+            {
+                if (key != null)
+                {
+                    foreach (string subkeyName in key.GetSubKeyNames())
+                    {
+                        using (var subkey = key.OpenSubKey(subkeyName))
+                        {
+                            if (subkey != null)
+                            {
+                                string mountPoint = subkey.GetValue("MountPoint") as string;
+                                string urlNamespace = subkey.GetValue("UrlNamespace") as string;
+
+                                if (!string.IsNullOrEmpty(mountPoint) && !string.IsNullOrEmpty(urlNamespace) &&
+                                    localPath.StartsWith(mountPoint, System.StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string relativePath = localPath.Substring(mountPoint.Length).Replace('\\', '/');
+                                    if (relativePath.StartsWith("/"))
+                                    {
+                                        relativePath = relativePath.Substring(1);
+                                    }
+                                    
+                                    string baseUrl = urlNamespace;
+                                    if (!baseUrl.EndsWith("/"))
+                                    {
+                                        baseUrl += "/";
+                                    }
+
+                                    if (baseUrl.Equals("https://d.docs.live.net/", System.StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string cid = subkey.GetValue("CID") as string;
+                                        if (!string.IsNullOrEmpty(cid))
+                                        {
+                                            baseUrl += cid + "/";
+                                        }
+                                    }
+
+                                    string escapedPath = "";
+                                    string[] parts = relativePath.Split('/');
+                                    for (int i = 0; i < parts.Length; i++)
+                                    {
+                                        escapedPath += System.Uri.EscapeDataString(parts[i]);
+                                        if (i < parts.Length - 1) escapedPath += "/";
+                                    }
+
+                                    return baseUrl + escapedPath;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore registry errors
+        }
+
+        return localPath;
+    }
+
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool EnableWindow(IntPtr hWnd, bool bEnable);
 
