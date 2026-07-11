@@ -173,78 +173,24 @@ public partial class MainWindow : Window
         }
     }
 
-    [System.Runtime.InteropServices.ComImport]
-    [System.Runtime.InteropServices.Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8")]
-    [System.Runtime.InteropServices.InterfaceType(System.Runtime.InteropServices.ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IDataTransferManagerInterop
-    {
-        IntPtr GetForWindow([System.Runtime.InteropServices.In] IntPtr appWindow, [System.Runtime.InteropServices.In] ref Guid riid);
-        void ShowShareUIForWindow([System.Runtime.InteropServices.In] IntPtr appWindow);
-    }
-
-    private string _fileToShare = string.Empty;
-    private Windows.ApplicationModel.DataTransfer.DataTransferManager? _dataTransferManager;
-
-    [System.Runtime.InteropServices.DllImport("combase.dll", ExactSpelling = true, PreserveSig = false)]
-    private static extern void RoGetActivationFactory(
-        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.HString)] string activatableClassId,
-        [System.Runtime.InteropServices.In] ref Guid iid,
-        out IDataTransferManagerInterop factory);
-
-    private IDataTransferManagerInterop? _dtmInterop;
-
-    private void ShareFile_Click(object sender, RoutedEventArgs e)
+    private void ShowInExplorer_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             if (sender is MenuFlyoutItem item && item.Tag is Models.ImageFile imageFile)
             {
-                _fileToShare = imageFile.FilePath;
-                
-                var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                
-                if (_dtmInterop == null || _dataTransferManager == null)
+                var psi = new System.Diagnostics.ProcessStartInfo
                 {
-                    Guid interopIid = new Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8");
-                    RoGetActivationFactory("Windows.ApplicationModel.DataTransfer.DataTransferManager", ref interopIid, out _dtmInterop);
-                    
-                    Guid dtmIid = new Guid("a5caee9b-8708-49d1-8d36-67d25a8da00c");
-                    IntPtr dtmPtr = _dtmInterop.GetForWindow(hWnd, ref dtmIid);
-                    _dataTransferManager = WinRT.MarshalInterface<Windows.ApplicationModel.DataTransfer.DataTransferManager>.FromAbi(dtmPtr);
-
-                    _dataTransferManager.DataRequested += DataTransferManager_DataRequested;
-                }
-
-                _dtmInterop.ShowShareUIForWindow(hWnd);
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{imageFile.FilePath}\"",
+                    UseShellExecute = true
+                };
+                System.Diagnostics.Process.Start(psi);
             }
         }
         catch (Exception ex)
         {
-            System.IO.File.WriteAllText("share_crash.log", ex.ToString());
-            System.Diagnostics.Debug.WriteLine($"Share error: {ex}");
-        }
-    }
-
-    private async void DataTransferManager_DataRequested(Windows.ApplicationModel.DataTransfer.DataTransferManager sender, Windows.ApplicationModel.DataTransfer.DataRequestedEventArgs args)
-    {
-        var deferral = args.Request.GetDeferral();
-        
-        try
-        {
-            var data = args.Request.Data;
-            data.Properties.Title = System.IO.Path.GetFileName(_fileToShare);
-            data.Properties.Description = "ファイルの共有";
-            
-            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(_fileToShare);
-            data.SetStorageItems(new[] { file });
-        }
-        catch (System.Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Share failed: {ex.Message}");
-        }
-        finally
-        {
-            deferral.Complete();
+            System.Diagnostics.Debug.WriteLine($"Failed to show in explorer: {ex}");
         }
     }
 
