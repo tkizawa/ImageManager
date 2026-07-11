@@ -24,6 +24,7 @@ public partial class MainWindow : Window
             _appWindow = AppWindow.GetFromWindowId(windowId);
             
             _appWindow.Title = "Image Manager";
+            _appWindow.SetIcon("Assets\\AppIcon.ico");
         } catch (System.Exception ex) {
             System.IO.File.WriteAllText("crash_main.log", ex.ToString());
         }
