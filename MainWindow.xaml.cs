@@ -11,7 +11,6 @@ public partial class MainWindow : Window
 {
     private readonly Services.SettingsService _settingsService = null!;
     public ViewModels.MainViewModel ViewModel { get; } = null!;
-    
     private AppWindow _appWindow = null!;
 
     public MainWindow()
@@ -174,83 +173,60 @@ public partial class MainWindow : Window
         }
     }
 
-    private void CopyFilePath_Click(object sender, RoutedEventArgs e)
+    [System.Runtime.InteropServices.ComImport]
+    [System.Runtime.InteropServices.Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8")]
+    [System.Runtime.InteropServices.InterfaceType(System.Runtime.InteropServices.ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IDataTransferManagerInterop
+    {
+        IntPtr GetForWindow([System.Runtime.InteropServices.In] IntPtr appWindow, [System.Runtime.InteropServices.In] ref Guid riid);
+        void ShowShareUIForWindow([System.Runtime.InteropServices.In] IntPtr appWindow);
+    }
+
+    private string _fileToShare = string.Empty;
+    private Windows.ApplicationModel.DataTransfer.DataTransferManager? _dataTransferManager;
+
+    private void ShareFile_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem item && item.Tag is Models.ImageFile imageFile)
         {
-            string path = imageFile.FilePath;
-            string url = TryGetSharePointOrOneDriveUrl(path);
+            _fileToShare = imageFile.FilePath;
             
-            var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            dataPackage.SetText(url ?? path);
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var factory = WinRT.ActivationFactory.Get("Windows.ApplicationModel.DataTransfer.DataTransferManager");
+            var interop = WinRT.CastExtensions.As<IDataTransferManagerInterop>(factory);
+            
+            var guid = new Guid("a5caee9b-8708-49d1-8d36-67d25a8da00c");
+            IntPtr dtmPtr = interop.GetForWindow(hWnd, ref guid);
+            _dataTransferManager = WinRT.MarshalInterface<Windows.ApplicationModel.DataTransfer.DataTransferManager>.FromAbi(dtmPtr);
+
+            _dataTransferManager.DataRequested -= DataTransferManager_DataRequested;
+            _dataTransferManager.DataRequested += DataTransferManager_DataRequested;
+
+            interop.ShowShareUIForWindow(hWnd);
         }
     }
 
-    private string TryGetSharePointOrOneDriveUrl(string localPath)
+    private async void DataTransferManager_DataRequested(Windows.ApplicationModel.DataTransfer.DataTransferManager sender, Windows.ApplicationModel.DataTransfer.DataRequestedEventArgs args)
     {
+        var deferral = args.Request.GetDeferral();
+        
         try
         {
-            string registryKey = @"Software\SyncEngines\Providers\OneDrive";
-            using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(registryKey))
-            {
-                if (key != null)
-                {
-                    foreach (string subkeyName in key.GetSubKeyNames())
-                    {
-                        using (var subkey = key.OpenSubKey(subkeyName))
-                        {
-                            if (subkey != null)
-                            {
-                                string? mountPoint = subkey.GetValue("MountPoint") as string;
-                                string? urlNamespace = subkey.GetValue("UrlNamespace") as string;
-
-                                if (!string.IsNullOrEmpty(mountPoint) && !string.IsNullOrEmpty(urlNamespace) &&
-                                    localPath.StartsWith(mountPoint, System.StringComparison.OrdinalIgnoreCase))
-                                {
-                                    string relativePath = localPath.Substring(mountPoint.Length).Replace('\\', '/');
-                                    if (relativePath.StartsWith("/"))
-                                    {
-                                        relativePath = relativePath.Substring(1);
-                                    }
-                                    
-                                    string baseUrl = urlNamespace;
-                                    if (!baseUrl.EndsWith("/"))
-                                    {
-                                        baseUrl += "/";
-                                    }
-
-                                    if (baseUrl.Equals("https://d.docs.live.net/", System.StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        string? cid = subkey.GetValue("CID") as string;
-                                        if (!string.IsNullOrEmpty(cid))
-                                        {
-                                            baseUrl += cid + "/";
-                                        }
-                                    }
-
-                                    string escapedPath = "";
-                                    string[] parts = relativePath.Split('/');
-                                    for (int i = 0; i < parts.Length; i++)
-                                    {
-                                        escapedPath += System.Uri.EscapeDataString(parts[i]);
-                                        if (i < parts.Length - 1) escapedPath += "/";
-                                    }
-
-                                    return baseUrl + escapedPath;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            var data = args.Request.Data;
+            data.Properties.Title = System.IO.Path.GetFileName(_fileToShare);
+            data.Properties.Description = "ファイルの共有";
+            
+            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(_fileToShare);
+            data.SetStorageItems(new[] { file });
         }
-        catch
+        catch (System.Exception ex)
         {
-            // Ignore registry errors
+            System.Diagnostics.Debug.WriteLine($"Share failed: {ex.Message}");
         }
-
-        return localPath;
+        finally
+        {
+            deferral.Complete();
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]

@@ -94,7 +94,7 @@
                         <StackPanel.ContextFlyout>
                             <MenuFlyout>
                                 <MenuFlyoutItem Text="Windowsのフォトで画像を開く" Click="OpenWithPhotos_Click" Tag="{Binding}" />
-                                <MenuFlyoutItem Text="ファイルパスをクリップボードにコピーする" Click="CopyFilePath_Click" Tag="{Binding}" />
+                                <MenuFlyoutItem Text="共有..." Click="ShareFile_Click" Tag="{Binding}" />
                             </MenuFlyout>
                         </StackPanel.ContextFlyout>
                         <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" 
