@@ -191,6 +191,8 @@ public partial class MainWindow : Window
         [System.Runtime.InteropServices.In] ref Guid iid,
         out IDataTransferManagerInterop factory);
 
+    private IDataTransferManagerInterop? _dtmInterop;
+
     private void ShareFile_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -201,17 +203,19 @@ public partial class MainWindow : Window
                 
                 var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
                 
-                Guid interopIid = new Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8");
-                RoGetActivationFactory("Windows.ApplicationModel.DataTransfer.DataTransferManager", ref interopIid, out IDataTransferManagerInterop interop);
-                
-                Guid dtmIid = new Guid("a5caee9b-8708-49d1-8d36-67d25a8da00c");
-                IntPtr dtmPtr = interop.GetForWindow(hWnd, ref dtmIid);
-                _dataTransferManager = WinRT.MarshalInterface<Windows.ApplicationModel.DataTransfer.DataTransferManager>.FromAbi(dtmPtr);
+                if (_dtmInterop == null || _dataTransferManager == null)
+                {
+                    Guid interopIid = new Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8");
+                    RoGetActivationFactory("Windows.ApplicationModel.DataTransfer.DataTransferManager", ref interopIid, out _dtmInterop);
+                    
+                    Guid dtmIid = new Guid("a5caee9b-8708-49d1-8d36-67d25a8da00c");
+                    IntPtr dtmPtr = _dtmInterop.GetForWindow(hWnd, ref dtmIid);
+                    _dataTransferManager = WinRT.MarshalInterface<Windows.ApplicationModel.DataTransfer.DataTransferManager>.FromAbi(dtmPtr);
 
-                _dataTransferManager.DataRequested -= DataTransferManager_DataRequested;
-                _dataTransferManager.DataRequested += DataTransferManager_DataRequested;
+                    _dataTransferManager.DataRequested += DataTransferManager_DataRequested;
+                }
 
-                interop.ShowShareUIForWindow(hWnd);
+                _dtmInterop.ShowShareUIForWindow(hWnd);
             }
         }
         catch (Exception ex)
