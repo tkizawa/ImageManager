@@ -202,8 +202,8 @@ public partial class MainWindow : Window
                         {
                             if (subkey != null)
                             {
-                                string mountPoint = subkey.GetValue("MountPoint") as string;
-                                string urlNamespace = subkey.GetValue("UrlNamespace") as string;
+                                string? mountPoint = subkey.GetValue("MountPoint") as string;
+                                string? urlNamespace = subkey.GetValue("UrlNamespace") as string;
 
                                 if (!string.IsNullOrEmpty(mountPoint) && !string.IsNullOrEmpty(urlNamespace) &&
                                     localPath.StartsWith(mountPoint, System.StringComparison.OrdinalIgnoreCase))
@@ -222,7 +222,7 @@ public partial class MainWindow : Window
 
                                     if (baseUrl.Equals("https://d.docs.live.net/", System.StringComparison.OrdinalIgnoreCase))
                                     {
-                                        string cid = subkey.GetValue("CID") as string;
+                                        string? cid = subkey.GetValue("CID") as string;
                                         if (!string.IsNullOrEmpty(cid))
                                         {
                                             baseUrl += cid + "/";
