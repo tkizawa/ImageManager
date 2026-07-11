@@ -177,6 +177,10 @@ public sealed partial class ImageWindow : Window
             _isDragging = true;
             _lastPointerPosition = pointerPoint.Position;
             FullImage.CapturePointer(e.Pointer);
+            
+            var prop = typeof(Microsoft.UI.Xaml.UIElement).GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            prop?.SetValue(FullImage, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.Hand));
+            
             e.Handled = true;
         }
     }
@@ -205,6 +209,10 @@ public sealed partial class ImageWindow : Window
         {
             _isDragging = false;
             FullImage.ReleasePointerCapture(e.Pointer);
+            
+            var prop = typeof(Microsoft.UI.Xaml.UIElement).GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            prop?.SetValue(FullImage, null);
+            
             e.Handled = true;
         }
     }
