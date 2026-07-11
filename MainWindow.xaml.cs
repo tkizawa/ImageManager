@@ -185,24 +185,39 @@ public partial class MainWindow : Window
     private string _fileToShare = string.Empty;
     private Windows.ApplicationModel.DataTransfer.DataTransferManager? _dataTransferManager;
 
+    [System.Runtime.InteropServices.DllImport("combase.dll", ExactSpelling = true, PreserveSig = false)]
+    private static extern void RoGetActivationFactory(
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.HString)] string activatableClassId,
+        [System.Runtime.InteropServices.In] ref Guid iid,
+        out IDataTransferManagerInterop factory);
+
     private void ShareFile_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is MenuFlyoutItem item && item.Tag is Models.ImageFile imageFile)
+        try
         {
-            _fileToShare = imageFile.FilePath;
-            
-            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var factory = WinRT.ActivationFactory.Get("Windows.ApplicationModel.DataTransfer.DataTransferManager");
-            var interop = WinRT.CastExtensions.As<IDataTransferManagerInterop>(factory);
-            
-            var guid = new Guid("a5caee9b-8708-49d1-8d36-67d25a8da00c");
-            IntPtr dtmPtr = interop.GetForWindow(hWnd, ref guid);
-            _dataTransferManager = WinRT.MarshalInterface<Windows.ApplicationModel.DataTransfer.DataTransferManager>.FromAbi(dtmPtr);
+            if (sender is MenuFlyoutItem item && item.Tag is Models.ImageFile imageFile)
+            {
+                _fileToShare = imageFile.FilePath;
+                
+                var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                
+                Guid interopIid = new Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8");
+                RoGetActivationFactory("Windows.ApplicationModel.DataTransfer.DataTransferManager", ref interopIid, out IDataTransferManagerInterop interop);
+                
+                Guid dtmIid = new Guid("a5caee9b-8708-49d1-8d36-67d25a8da00c");
+                IntPtr dtmPtr = interop.GetForWindow(hWnd, ref dtmIid);
+                _dataTransferManager = WinRT.MarshalInterface<Windows.ApplicationModel.DataTransfer.DataTransferManager>.FromAbi(dtmPtr);
 
-            _dataTransferManager.DataRequested -= DataTransferManager_DataRequested;
-            _dataTransferManager.DataRequested += DataTransferManager_DataRequested;
+                _dataTransferManager.DataRequested -= DataTransferManager_DataRequested;
+                _dataTransferManager.DataRequested += DataTransferManager_DataRequested;
 
-            interop.ShowShareUIForWindow(hWnd);
+                interop.ShowShareUIForWindow(hWnd);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.IO.File.WriteAllText("share_crash.log", ex.ToString());
+            System.Diagnostics.Debug.WriteLine($"Share error: {ex}");
         }
     }
 
