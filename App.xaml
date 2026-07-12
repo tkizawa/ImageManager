@@ -11,6 +11,7 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+            <converters:PathToFolderNameConverter x:Key="PathToFolderNameConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

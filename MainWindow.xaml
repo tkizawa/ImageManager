@@ -59,8 +59,8 @@
                           ItemClick="FavoriteListView_ItemClick">
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Grid Padding="0,5">
-                                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis">
+                            <Grid Padding="0,5" ToolTipService.ToolTip="{Binding}">
+                                <TextBlock Text="{Binding Converter={StaticResource PathToFolderNameConverter}}" TextTrimming="CharacterEllipsis">
                                     <TextBlock.ContextFlyout>
                                         <MenuFlyout>
                                             <MenuFlyoutItem Text="開く" 
