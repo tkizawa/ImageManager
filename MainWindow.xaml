@@ -82,30 +82,51 @@
         <!-- Splitter 1 -->
         <Thumb Grid.Row="1" Grid.Column="1" Width="11" x:Name="TreeSplitter" Background="Transparent" DragDelta="TreeSplitter_DragDelta" Loaded="Splitter_Loaded" />
 
-        <!-- Thumbnail Grid -->
-        <GridView Grid.Row="1" Grid.Column="2" x:Name="ThumbnailGridView"
-                  ItemsSource="{Binding Images}" 
-                  SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
-                  DoubleTapped="ThumbnailGridView_DoubleTapped"
-                  Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
-            <GridView.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Margin="5" Width="{Binding DataContext.ThumbnailPanelWidth, ElementName=RootGrid}">
-                        <StackPanel.ContextFlyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem Text="Windowsのフォトで画像を開く" Click="OpenWithPhotos_Click" Tag="{Binding}" />
-                                <MenuFlyoutItem Text="エクスプローラーで表示" Click="ShowInExplorer_Click" Tag="{Binding}" />
-                            </MenuFlyout>
-                        </StackPanel.ContextFlyout>
-                        <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" 
-                               Width="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
-                               Height="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
-                               Stretch="Uniform" />
-                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding FileName}" TextAlignment="Center" Margin="0,5,0,0" />
-                    </StackPanel>
-                </DataTemplate>
-            </GridView.ItemTemplate>
-        </GridView>
+        <!-- Thumbnail Area -->
+        <Grid Grid.Row="1" Grid.Column="2" Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            
+            <!-- Toolbar -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Padding="10,5,10,5" BorderBrush="#DDDDDD" BorderThickness="0,0,0,1" Background="#F9F9F9">
+                <TextBlock Text="並び替え:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <ComboBox SelectedIndex="{Binding SortFieldIndex, Mode=TwoWay}" Width="120" Margin="0,0,10,0">
+                    <ComboBoxItem Content="更新日" />
+                    <ComboBoxItem Content="撮影日" />
+                </ComboBox>
+                <ComboBox SelectedIndex="{Binding SortDirectionIndex, Mode=TwoWay}" Width="100">
+                    <ComboBoxItem Content="昇順" />
+                    <ComboBoxItem Content="降順" />
+                </ComboBox>
+            </StackPanel>
+
+            <!-- Thumbnail Grid -->
+            <GridView Grid.Row="1" x:Name="ThumbnailGridView"
+                      ItemsSource="{Binding Images}" 
+                      SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
+                      DoubleTapped="ThumbnailGridView_DoubleTapped"
+                      Padding="5">
+                <GridView.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="5" Width="{Binding DataContext.ThumbnailPanelWidth, ElementName=RootGrid}">
+                            <StackPanel.ContextFlyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Windowsのフォトで画像を開く" Click="OpenWithPhotos_Click" Tag="{Binding}" />
+                                    <MenuFlyoutItem Text="エクスプローラーで表示" Click="ShowInExplorer_Click" Tag="{Binding}" />
+                                </MenuFlyout>
+                            </StackPanel.ContextFlyout>
+                            <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" 
+                                   Width="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
+                                   Height="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
+                                   Stretch="Uniform" />
+                            <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding FileName}" TextAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+        </Grid>
         
         <!-- Splitter 2 -->
         <Thumb Grid.Row="1" Grid.Column="3" Width="11" x:Name="PreviewSplitter" Background="Transparent" DragDelta="PreviewSplitter_DragDelta" Loaded="Splitter_Loaded" />
@@ -142,8 +163,8 @@
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="サイズ (Bytes):" FontWeight="SemiBold" Margin="0,0,10,5" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedImage.FileSize}" Margin="0,0,0,5" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="ファイル作成日時:" FontWeight="SemiBold" Margin="0,0,10,5" />
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedImage.CreationTime}" Margin="0,0,0,5" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="ファイル更新日時:" FontWeight="SemiBold" Margin="0,0,10,5" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedImage.LastWriteTime}" Margin="0,0,0,5" />
                         
                         <!-- EXIF Info -->
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="撮影日:" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />

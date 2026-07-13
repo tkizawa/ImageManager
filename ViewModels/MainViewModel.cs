@@ -44,6 +44,80 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private ObservableCollection<string> _favoriteFolders = new();
 
+        [ObservableProperty]
+        private int _sortFieldIndex = 0; // 0: LastWriteTime, 1: DateTaken
+
+        [ObservableProperty]
+        private int _sortDirectionIndex = 1; // 0: Ascending, 1: Descending
+
+        private bool _isSorting = false;
+
+        partial void OnSortFieldIndexChanged(int value)
+        {
+            if (!string.IsNullOrEmpty(CurrentFolderPath))
+            {
+                _ = SortImagesAsync();
+            }
+        }
+
+        partial void OnSortDirectionIndexChanged(int value)
+        {
+            if (!string.IsNullOrEmpty(CurrentFolderPath))
+            {
+                _ = SortImagesAsync();
+            }
+        }
+
+        private async Task SortImagesAsync()
+        {
+            if (Images.Count == 0 || _isSorting) return;
+            _isSorting = true;
+
+            try
+            {
+                var sorted = await Task.Run(async () => 
+                {
+                    var list = Images.ToList();
+                    
+                    if (SortFieldIndex == 1) // DateTaken
+                    {
+                        var tasks = list.Where(i => !i.IsExifLoaded).Select(i => i.LoadExifAsync());
+                        await Task.WhenAll(tasks);
+                    }
+
+                    if (SortFieldIndex == 0) // LastWriteTime
+                    {
+                        if (SortDirectionIndex == 0) // Ascending
+                            return list.OrderBy(i => i.LastWriteTime).ToList();
+                        else
+                            return list.OrderByDescending(i => i.LastWriteTime).ToList();
+                    }
+                    else // DateTaken
+                    {
+                        if (SortDirectionIndex == 0)
+                            return list.OrderBy(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                        else
+                            return list.OrderByDescending(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                    }
+                });
+
+                _dispatcherQueue?.TryEnqueue(() => 
+                {
+                    var selected = SelectedImage;
+                    Images.Clear();
+                    foreach (var img in sorted)
+                    {
+                        Images.Add(img);
+                    }
+                    SelectedImage = selected;
+                });
+            }
+            finally
+            {
+                _isSorting = false;
+            }
+        }
+
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
 
         public MainViewModel(IFileSystemService fileSystemService, SettingsService settingsService)
@@ -154,10 +228,31 @@ namespace ImageManager.ViewModels
             SelectedImage = null;
             
             // In a real app, this should run on a background thread to avoid freezing UI
-            await Task.Run(() => 
+            await Task.Run(async () => 
             {
                 var files = _fileSystemService.GetImageFiles(folderPath).ToList();
                 var newImages = files.Select(f => new ImageFile(f)).ToList();
+                
+                if (SortFieldIndex == 1) // DateTaken
+                {
+                    var tasks = newImages.Where(i => !i.IsExifLoaded).Select(i => i.LoadExifAsync());
+                    await Task.WhenAll(tasks);
+                }
+
+                if (SortFieldIndex == 0) // LastWriteTime
+                {
+                    if (SortDirectionIndex == 0) // Ascending
+                        newImages = newImages.OrderBy(i => i.LastWriteTime).ToList();
+                    else
+                        newImages = newImages.OrderByDescending(i => i.LastWriteTime).ToList();
+                }
+                else // DateTaken
+                {
+                    if (SortDirectionIndex == 0)
+                        newImages = newImages.OrderBy(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                    else
+                        newImages = newImages.OrderByDescending(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                }
                 
                 _dispatcherQueue?.TryEnqueue(() => 
                 {

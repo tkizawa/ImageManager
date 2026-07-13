@@ -21,6 +21,9 @@ namespace ImageManager.Models
         private DateTime _creationTime;
 
         [ObservableProperty]
+        private DateTime _lastWriteTime;
+
+        [ObservableProperty]
         private int _imageWidth;
 
         [ObservableProperty]
@@ -59,6 +62,7 @@ namespace ImageManager.Models
             {
                 FileSize = info.Length;
                 CreationTime = info.CreationTime;
+                LastWriteTime = info.LastWriteTime;
             }
         }
 
