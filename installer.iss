@@ -1,6 +1,6 @@
 [Setup]
 AppName=ImageManager
-AppVersion=1.0.0.2
+AppVersion=1.0.2.0
 DefaultDirName={autopf}\ImageManager
 DefaultGroupName=ImageManager
 OutputDir=Output
