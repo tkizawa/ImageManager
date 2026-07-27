@@ -139,4 +139,37 @@
   <data name="FocalLengthText.Text" xml:space="preserve">
     <value>Focal Length:</value>
   </data>
+  <data name="SettingsText.Text" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="ExportSettingsMenu.Text" xml:space="preserve">
+    <value>Export Settings...</value>
+  </data>
+  <data name="ImportSettingsMenu.Text" xml:space="preserve">
+    <value>Import Settings...</value>
+  </data>
+  <data name="ExportSuccessTitle" xml:space="preserve">
+    <value>Export Complete</value>
+  </data>
+  <data name="ExportSuccessMessage" xml:space="preserve">
+    <value>Settings exported successfully.</value>
+  </data>
+  <data name="ExportErrorTitle" xml:space="preserve">
+    <value>Export Failed</value>
+  </data>
+  <data name="ExportErrorMessage" xml:space="preserve">
+    <value>Failed to export settings.</value>
+  </data>
+  <data name="ImportSuccessTitle" xml:space="preserve">
+    <value>Import Complete</value>
+  </data>
+  <data name="ImportSuccessMessage" xml:space="preserve">
+    <value>Settings imported successfully.</value>
+  </data>
+  <data name="ImportErrorTitle" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="ImportErrorMessage" xml:space="preserve">
+    <value>Failed to import settings file.</value>
+  </data>
 </root>

@@ -25,6 +25,7 @@ namespace ImageManager.ViewModels
         private ImageFile? _selectedImage;
 
         public event System.EventHandler<DirectoryNodeViewModel>? FolderSelectedEvent;
+        public event System.EventHandler<(string titleKey, string messageKey)>? ShowMessageRequested;
 
         partial void OnSelectedImageChanged(ImageFile? value)
         {
@@ -368,6 +369,73 @@ namespace ImageManager.ViewModels
             var settings = _settingsService.Load();
             settings.HistoryFolders = HistoryFolders.ToList();
             _settingsService.Save(settings);
+        }
+
+        [RelayCommand]
+        private async Task ExportSettingsAsync()
+        {
+            var settings = _settingsService.Load();
+            settings.FavoriteFolders = FavoriteFolders.ToList();
+            settings.HistoryFolders = HistoryFolders.ToList();
+            settings.LastOpenedFolder = CurrentFolderPath;
+
+            var filePath = await _fileSystemService.SaveFilePickerAsync("ImageManagerSettings.json", "JSON File (*.json)", ".json");
+            if (!string.IsNullOrEmpty(filePath))
+            {
+                bool success = _settingsService.ExportSettings(filePath, settings);
+                if (success)
+                {
+                    ShowMessageRequested?.Invoke(this, ("ExportSuccessTitle", "ExportSuccessMessage"));
+                }
+                else
+                {
+                    ShowMessageRequested?.Invoke(this, ("ExportErrorTitle", "ExportErrorMessage"));
+                }
+            }
+        }
+
+        [RelayCommand]
+        private async Task ImportSettingsAsync()
+        {
+            var filePath = await _fileSystemService.OpenFilePickerAsync("JSON File (*.json)", ".json");
+            if (!string.IsNullOrEmpty(filePath))
+            {
+                var imported = _settingsService.ImportSettings(filePath);
+                if (imported != null)
+                {
+                    _settingsService.Save(imported);
+
+                    FavoriteFolders.Clear();
+                    if (imported.FavoriteFolders != null)
+                    {
+                        foreach (var folder in imported.FavoriteFolders)
+                        {
+                            FavoriteFolders.Add(folder);
+                        }
+                    }
+
+                    HistoryFolders.Clear();
+                    if (imported.HistoryFolders != null)
+                    {
+                        foreach (var folder in imported.HistoryFolders)
+                        {
+                            HistoryFolders.Add(folder);
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(imported.LastOpenedFolder) && System.IO.Directory.Exists(imported.LastOpenedFolder))
+                    {
+                        await SelectFolderFromTreeAsync(imported.LastOpenedFolder);
+                        _ = ExpandAndSelectPathAsync(imported.LastOpenedFolder);
+                    }
+
+                    ShowMessageRequested?.Invoke(this, ("ImportSuccessTitle", "ImportSuccessMessage"));
+                }
+                else
+                {
+                    ShowMessageRequested?.Invoke(this, ("ImportErrorTitle", "ImportErrorMessage"));
+                }
+            }
         }
     }
 }

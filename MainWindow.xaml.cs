@@ -62,6 +62,26 @@ public partial class MainWindow : Window
                 await System.Threading.Tasks.Task.Delay(200);
             }
         };
+
+        ViewModel.ShowMessageRequested += async (s, e) =>
+        {
+            try
+            {
+                var resourceLoader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+                string title = resourceLoader.GetString(e.titleKey);
+                string message = resourceLoader.GetString(e.messageKey);
+
+                var dialog = new ContentDialog
+                {
+                    Title = string.IsNullOrEmpty(title) ? e.titleKey : title,
+                    Content = string.IsNullOrEmpty(message) ? e.messageKey : message,
+                    CloseButtonText = "OK",
+                    XamlRoot = RootGrid.XamlRoot
+                };
+                await dialog.ShowAsync();
+            }
+            catch { }
+        };
     }
 
     private void ThumbnailGridView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)

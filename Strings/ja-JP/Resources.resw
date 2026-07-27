@@ -139,4 +139,37 @@
   <data name="FocalLengthText.Text" xml:space="preserve">
     <value>焦点距離:</value>
   </data>
+  <data name="SettingsText.Text" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="ExportSettingsMenu.Text" xml:space="preserve">
+    <value>設定のエクスポート...</value>
+  </data>
+  <data name="ImportSettingsMenu.Text" xml:space="preserve">
+    <value>設定のインポート...</value>
+  </data>
+  <data name="ExportSuccessTitle" xml:space="preserve">
+    <value>エクスポート完了</value>
+  </data>
+  <data name="ExportSuccessMessage" xml:space="preserve">
+    <value>設定のエクスポートが正常に完了しました。</value>
+  </data>
+  <data name="ExportErrorTitle" xml:space="preserve">
+    <value>エクスポート失敗</value>
+  </data>
+  <data name="ExportErrorMessage" xml:space="preserve">
+    <value>設定のエクスポートに失敗しました。</value>
+  </data>
+  <data name="ImportSuccessTitle" xml:space="preserve">
+    <value>インポート完了</value>
+  </data>
+  <data name="ImportSuccessMessage" xml:space="preserve">
+    <value>設定のインポートが正常に完了しました。</value>
+  </data>
+  <data name="ImportErrorTitle" xml:space="preserve">
+    <value>インポート失敗</value>
+  </data>
+  <data name="ImportErrorMessage" xml:space="preserve">
+    <value>設定ファイルの読み込みに失敗しました。</value>
+  </data>
 </root>

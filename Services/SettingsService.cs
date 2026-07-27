@@ -45,5 +45,34 @@ namespace ImageManager.Services
             }
             catch { }
         }
+
+        public bool ExportSettings(string filePath, AppSettings settings)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions(_jsonOptions) { WriteIndented = true };
+                var json = JsonSerializer.Serialize(settings, options);
+                File.WriteAllText(filePath, json);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public AppSettings? ImportSettings(string filePath)
+        {
+            if (!File.Exists(filePath)) return null;
+            try
+            {
+                var json = File.ReadAllText(filePath);
+                return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions);
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }
