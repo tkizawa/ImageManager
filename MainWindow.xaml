@@ -23,7 +23,7 @@
         <!-- Top Bar -->
         <Grid Grid.Row="0" Grid.ColumnSpan="5" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                <Button Content="フォルダを開く..." Command="{Binding SelectFolderCommand}" Padding="10,5" />
+                <Button x:Uid="OpenFolderButton" Command="{Binding SelectFolderCommand}" Padding="10,5" />
                 <TextBlock Text="{Binding CurrentFolderPath}" VerticalAlignment="Center" Margin="10,0,0,0" FontWeight="SemiBold" />
             </StackPanel>
             <TextBlock Text="{Binding AppVersion}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="Gray" Margin="0,0,5,0" />
@@ -32,7 +32,7 @@
         <!-- Left Pane (Tabs) -->
         <TabView Grid.Row="1" Grid.Column="0" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent" Background="White" BorderBrush="#DDDDDD" BorderThickness="1">
             <!-- フォルダタブ (ツリー) -->
-            <TabViewItem Header="フォルダ" IsClosable="False">
+            <TabViewItem x:Uid="FolderTab" IsClosable="False">
                 <TreeView x:Name="FolderTreeView"
                           ItemsSource="{Binding Folders}"
                           ItemInvoked="FolderTreeView_ItemInvoked">
@@ -42,7 +42,7 @@
                                 <TextBlock Text="{Binding Name}">
                                     <TextBlock.ContextFlyout>
                                         <MenuFlyout>
-                                            <MenuFlyoutItem Text="お気に入りに追加" 
+                                            <MenuFlyoutItem x:Uid="AddToFavoritesMenu" 
                                                             Click="AddFavoriteFolder_Click" 
                                                             Tag="{Binding}" />
                                         </MenuFlyout>
@@ -55,7 +55,7 @@
             </TabViewItem>
 
             <!-- お気に入りタブ -->
-            <TabViewItem Header="お気に入り" IsClosable="False">
+            <TabViewItem x:Uid="FavoritesTab" IsClosable="False">
                 <ListView ItemsSource="{Binding FavoriteFolders}" 
                           SelectionMode="Single"
                           IsItemClickEnabled="True"
@@ -66,10 +66,10 @@
                                 <TextBlock Text="{Binding Converter={StaticResource PathToFolderNameConverter}}" TextTrimming="CharacterEllipsis">
                                     <TextBlock.ContextFlyout>
                                         <MenuFlyout>
-                                            <MenuFlyoutItem Text="開く" 
+                                            <MenuFlyoutItem x:Uid="OpenMenu" 
                                                             Click="OpenFavoriteFolder_Click" 
                                                             Tag="{Binding}" />
-                                            <MenuFlyoutItem Text="お気に入りから削除" 
+                                            <MenuFlyoutItem x:Uid="RemoveFromFavoritesMenu" 
                                                             Click="RemoveFavoriteFolder_Click" 
                                                             Tag="{Binding}" />
                                         </MenuFlyout>
@@ -82,7 +82,7 @@
             </TabViewItem>
 
             <!-- 履歴タブ -->
-            <TabViewItem Header="履歴" IsClosable="False">
+            <TabViewItem x:Uid="HistoryTab" IsClosable="False">
                 <ListView ItemsSource="{Binding HistoryFolders}" 
                           SelectionMode="Single"
                           IsItemClickEnabled="True"
@@ -93,10 +93,10 @@
                                 <TextBlock Text="{Binding Converter={StaticResource PathToFolderNameConverter}}" TextTrimming="CharacterEllipsis">
                                     <TextBlock.ContextFlyout>
                                         <MenuFlyout>
-                                            <MenuFlyoutItem Text="開く" 
+                                            <MenuFlyoutItem x:Uid="OpenMenu" 
                                                             Click="OpenHistoryFolder_Click" 
                                                             Tag="{Binding}" />
-                                            <MenuFlyoutItem Text="履歴から削除" 
+                                            <MenuFlyoutItem x:Uid="RemoveFromHistoryMenu" 
                                                             Click="RemoveHistoryFolder_Click" 
                                                             Tag="{Binding}" />
                                         </MenuFlyout>
@@ -121,14 +121,14 @@
             
             <!-- Toolbar -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Padding="10,5,10,5" BorderBrush="#DDDDDD" BorderThickness="0,0,0,1" Background="#F9F9F9">
-                <TextBlock Text="並び替え:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock x:Uid="SortByText" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <ComboBox SelectedIndex="{Binding SortFieldIndex, Mode=TwoWay}" Width="120" Margin="0,0,10,0">
-                    <ComboBoxItem Content="更新日" />
-                    <ComboBoxItem Content="撮影日" />
+                    <ComboBoxItem x:Uid="SortModifiedDate" />
+                    <ComboBoxItem x:Uid="SortTakenDate" />
                 </ComboBox>
                 <ComboBox SelectedIndex="{Binding SortDirectionIndex, Mode=TwoWay}" Width="100">
-                    <ComboBoxItem Content="昇順" />
-                    <ComboBoxItem Content="降順" />
+                    <ComboBoxItem x:Uid="SortAscending" />
+                    <ComboBoxItem x:Uid="SortDescending" />
                 </ComboBox>
             </StackPanel>
 
@@ -143,8 +143,8 @@
                         <StackPanel Margin="5" Width="{Binding DataContext.ThumbnailPanelWidth, ElementName=RootGrid}">
                             <StackPanel.ContextFlyout>
                                 <MenuFlyout>
-                                    <MenuFlyoutItem Text="Windowsのフォトで画像を開く" Click="OpenWithPhotos_Click" Tag="{Binding}" />
-                                    <MenuFlyoutItem Text="エクスプローラーで表示" Click="ShowInExplorer_Click" Tag="{Binding}" />
+                                    <MenuFlyoutItem x:Uid="OpenWithPhotosMenu" Click="OpenWithPhotos_Click" Tag="{Binding}" />
+                                    <MenuFlyoutItem x:Uid="ShowInExplorerMenu" Click="ShowInExplorer_Click" Tag="{Binding}" />
                                 </MenuFlyout>
                             </StackPanel.ContextFlyout>
                             <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" 
@@ -165,10 +165,10 @@
         <Border Grid.Row="1" Grid.Column="4" Background="White" BorderBrush="#DDDDDD" BorderThickness="1" Padding="10">
             <ScrollViewer>
                 <StackPanel>
-                    <TextBlock Text="プレビュー" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
+                    <TextBlock x:Uid="PreviewText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
                     <Image Source="{Binding SelectedImage.FilePath, Converter={StaticResource StringToImageSourceConverter}}" MaxHeight="300" Stretch="Uniform" Margin="0,0,0,20" />
                     
-                    <TextBlock Text="プロパティ" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
+                    <TextBlock x:Uid="PropertiesText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -187,35 +187,35 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="ファイル名:" FontWeight="SemiBold" Margin="0,0,10,5" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" x:Uid="FileNameText" FontWeight="SemiBold" Margin="0,0,10,5" />
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedImage.FileName}" TextWrapping="Wrap" Margin="0,0,0,5" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="サイズ (Bytes):" FontWeight="SemiBold" Margin="0,0,10,5" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" x:Uid="FileSizeText" FontWeight="SemiBold" Margin="0,0,10,5" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedImage.FileSize}" Margin="0,0,0,5" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="ファイル更新日時:" FontWeight="SemiBold" Margin="0,0,10,5" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" x:Uid="FileModifiedDateText" FontWeight="SemiBold" Margin="0,0,10,5" />
                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedImage.LastWriteTime}" Margin="0,0,0,5" />
                         
                         <!-- EXIF Info -->
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="撮影日:" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" x:Uid="DateTakenText" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedImage.DateTaken}" Margin="0,10,0,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="カメラ:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="4" Grid.Column="0" x:Uid="CameraText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedImage.CameraModel}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                        <TextBlock Grid.Row="5" Grid.Column="0" Text="レンズ:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="5" Grid.Column="0" x:Uid="LensText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedImage.Lens}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="F値:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="6" Grid.Column="0" x:Uid="FNumberText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedImage.FNumber}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                        <TextBlock Grid.Row="7" Grid.Column="0" Text="露出時間:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="7" Grid.Column="0" x:Uid="ExposureTimeText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedImage.ExposureTime}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                        <TextBlock Grid.Row="8" Grid.Column="0" Text="ISO:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="8" Grid.Column="0" x:Uid="IsoText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedImage.IsoSpeed}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
                         
-                        <TextBlock Grid.Row="9" Grid.Column="0" Text="焦点距離:" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="9" Grid.Column="0" x:Uid="FocalLengthText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedImage.FocalLength}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
                     </Grid>
                 </StackPanel>

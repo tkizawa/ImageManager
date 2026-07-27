@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="OpenFolderButton.Content" xml:space="preserve">
+    <value>Open Folder...</value>
+  </data>
+  <data name="FolderTab.Header" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="AddToFavoritesMenu.Text" xml:space="preserve">
+    <value>Add to Favorites</value>
+  </data>
+  <data name="FavoritesTab.Header" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="OpenMenu.Text" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="RemoveFromFavoritesMenu.Text" xml:space="preserve">
+    <value>Remove from Favorites</value>
+  </data>
+  <data name="HistoryTab.Header" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="RemoveFromHistoryMenu.Text" xml:space="preserve">
+    <value>Remove from History</value>
+  </data>
+  <data name="SortByText.Text" xml:space="preserve">
+    <value>Sort by:</value>
+  </data>
+  <data name="SortModifiedDate.Content" xml:space="preserve">
+    <value>Date Modified</value>
+  </data>
+  <data name="SortTakenDate.Content" xml:space="preserve">
+    <value>Date Taken</value>
+  </data>
+  <data name="SortAscending.Content" xml:space="preserve">
+    <value>Ascending</value>
+  </data>
+  <data name="SortDescending.Content" xml:space="preserve">
+    <value>Descending</value>
+  </data>
+  <data name="OpenWithPhotosMenu.Text" xml:space="preserve">
+    <value>Open with Windows Photos</value>
+  </data>
+  <data name="ShowInExplorerMenu.Text" xml:space="preserve">
+    <value>Show in Explorer</value>
+  </data>
+  <data name="PreviewText.Text" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="PropertiesText.Text" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="FileNameText.Text" xml:space="preserve">
+    <value>File Name:</value>
+  </data>
+  <data name="FileSizeText.Text" xml:space="preserve">
+    <value>Size (Bytes):</value>
+  </data>
+  <data name="FileModifiedDateText.Text" xml:space="preserve">
+    <value>Date Modified:</value>
+  </data>
+  <data name="DateTakenText.Text" xml:space="preserve">
+    <value>Date Taken:</value>
+  </data>
+  <data name="CameraText.Text" xml:space="preserve">
+    <value>Camera:</value>
+  </data>
+  <data name="LensText.Text" xml:space="preserve">
+    <value>Lens:</value>
+  </data>
+  <data name="FNumberText.Text" xml:space="preserve">
+    <value>F-Stop:</value>
+  </data>
+  <data name="ExposureTimeText.Text" xml:space="preserve">
+    <value>Exposure Time:</value>
+  </data>
+  <data name="IsoText.Text" xml:space="preserve">
+    <value>ISO:</value>
+  </data>
+  <data name="FocalLengthText.Text" xml:space="preserve">
+    <value>Focal Length:</value>
+  </data>
+</root>
