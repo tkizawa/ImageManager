@@ -77,6 +77,33 @@
                     </ListView.ItemTemplate>
                 </ListView>
             </TabViewItem>
+
+            <!-- 履歴タブ -->
+            <TabViewItem Header="履歴" IsClosable="False">
+                <ListView ItemsSource="{Binding HistoryFolders}" 
+                          SelectionMode="Single"
+                          IsItemClickEnabled="True"
+                          ItemClick="HistoryListView_ItemClick">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Padding="0,5" ToolTipService.ToolTip="{Binding}">
+                                <TextBlock Text="{Binding Converter={StaticResource PathToFolderNameConverter}}" TextTrimming="CharacterEllipsis">
+                                    <TextBlock.ContextFlyout>
+                                        <MenuFlyout>
+                                            <MenuFlyoutItem Text="開く" 
+                                                            Click="OpenHistoryFolder_Click" 
+                                                            Tag="{Binding}" />
+                                            <MenuFlyoutItem Text="履歴から削除" 
+                                                            Click="RemoveHistoryFolder_Click" 
+                                                            Tag="{Binding}" />
+                                        </MenuFlyout>
+                                    </TextBlock.ContextFlyout>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </TabViewItem>
         </TabView>
 
         <!-- Splitter 1 -->

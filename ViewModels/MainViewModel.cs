@@ -45,6 +45,9 @@ namespace ImageManager.ViewModels
         private ObservableCollection<string> _favoriteFolders = new();
 
         [ObservableProperty]
+        private ObservableCollection<string> _historyFolders = new();
+
+        [ObservableProperty]
         private int _sortFieldIndex = 0; // 0: LastWriteTime, 1: DateTaken
 
         [ObservableProperty]
@@ -139,6 +142,14 @@ namespace ImageManager.ViewModels
                     FavoriteFolders.Add(folder);
                 }
             }
+            
+            if (settings.HistoryFolders != null)
+            {
+                foreach (var folder in settings.HistoryFolders)
+                {
+                    HistoryFolders.Add(folder);
+                }
+            }
 
             if (!string.IsNullOrEmpty(settings.LastOpenedFolder) && System.IO.Directory.Exists(settings.LastOpenedFolder))
             {
@@ -202,6 +213,8 @@ namespace ImageManager.ViewModels
                 settings.LastOpenedFolder = folderPath;
                 _settingsService.Save(settings);
                 
+                AddHistoryFolder(folderPath);
+                
                 await LoadImagesAsync(folderPath);
             }
         }
@@ -216,6 +229,8 @@ namespace ImageManager.ViewModels
                 var settings = _settingsService.Load();
                 settings.LastOpenedFolder = folder;
                 _settingsService.Save(settings);
+                
+                AddHistoryFolder(folder);
                 
                 await LoadImagesAsync(folder);
                 _ = ExpandAndSelectPathAsync(folder);
@@ -301,6 +316,55 @@ namespace ImageManager.ViewModels
         {
             var settings = _settingsService.Load();
             settings.FavoriteFolders = FavoriteFolders.ToList();
+            _settingsService.Save(settings);
+        }
+
+        private void AddHistoryFolder(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath)) return;
+
+            // Remove if exists to avoid duplicates
+            if (HistoryFolders.Contains(folderPath))
+            {
+                HistoryFolders.Remove(folderPath);
+            }
+
+            // Add to the top of the list (most recent)
+            HistoryFolders.Insert(0, folderPath);
+
+            // Optional: limit history size, e.g., to 20
+            while (HistoryFolders.Count > 20)
+            {
+                HistoryFolders.RemoveAt(HistoryFolders.Count - 1);
+            }
+
+            SaveHistory();
+        }
+
+        [RelayCommand]
+        private void RemoveHistoryFolder(string? folderPath)
+        {
+            if (!string.IsNullOrEmpty(folderPath) && HistoryFolders.Contains(folderPath))
+            {
+                HistoryFolders.Remove(folderPath);
+                SaveHistory();
+            }
+        }
+
+        [RelayCommand]
+        private async Task SelectHistoryFolderAsync(string? folderPath)
+        {
+            if (!string.IsNullOrEmpty(folderPath) && System.IO.Directory.Exists(folderPath))
+            {
+                await SelectFolderFromTreeAsync(folderPath);
+                _ = ExpandAndSelectPathAsync(folderPath);
+            }
+        }
+
+        private void SaveHistory()
+        {
+            var settings = _settingsService.Load();
+            settings.HistoryFolders = HistoryFolders.ToList();
             _settingsService.Save(settings);
         }
     }

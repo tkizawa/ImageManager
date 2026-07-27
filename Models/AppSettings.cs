@@ -18,5 +18,6 @@ namespace ImageManager.Models
         public double ImageWindowTop { get; set; } = double.NaN;
 
         public System.Collections.Generic.List<string> FavoriteFolders { get; set; } = new();
+        public System.Collections.Generic.List<string> HistoryFolders { get; set; } = new();
     }
 }

@@ -154,6 +154,33 @@ public partial class MainWindow : Window
         }
     }
 
+    private void HistoryListView_ItemClick(object sender, Microsoft.UI.Xaml.Controls.ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is string folderPath)
+        {
+            if (ViewModel.SelectHistoryFolderCommand.CanExecute(folderPath))
+            {
+                ViewModel.SelectHistoryFolderCommand.Execute(folderPath);
+            }
+        }
+    }
+
+    private void OpenHistoryFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is string folderPath)
+        {
+            ViewModel.SelectHistoryFolderCommand.Execute(folderPath);
+        }
+    }
+
+    private void RemoveHistoryFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is string folderPath)
+        {
+            ViewModel.RemoveHistoryFolderCommand.Execute(folderPath);
+        }
+    }
+
     private async void OpenWithPhotos_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem item && item.Tag is Models.ImageFile imageFile)
