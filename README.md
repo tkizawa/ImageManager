@@ -1,6 +1,6 @@
-# Image Manager (画像・写真管理アプリ)
+# WoodStream ImageManager (画像・写真管理アプリ)
 
-Image Manager は、指定したフォルダ内の画像ファイルを高速かつ簡単に閲覧・管理するための Windows 向けデスクトップアプリケーションです。
+WoodStream ImageManager は、指定したフォルダ内の画像ファイルを高速かつ簡単に閲覧・管理するための Windows 向けデスクトップアプリケーションです。
 .NET 10 と WinUI 3 (Windows App SDK)、MVVM アーキテクチャを用いて構築されています。
 
 ## 主な機能

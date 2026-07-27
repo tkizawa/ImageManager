@@ -16,6 +16,8 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private string _currentFolderPath = string.Empty;
 
+        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.2.0"}";
+
         [ObservableProperty]
         private ObservableCollection<ImageFile> _images = new();
 

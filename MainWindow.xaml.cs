@@ -23,7 +23,7 @@ public partial class MainWindow : Window
             WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
             _appWindow = AppWindow.GetFromWindowId(windowId);
             
-            _appWindow.Title = "Image Manager";
+            _appWindow.Title = "WoodStream ImageManager";
             _appWindow.SetIcon("Assets\\AppIcon.ico");
         } catch (System.Exception ex) {
             System.IO.File.WriteAllText("crash_main.log", ex.ToString());

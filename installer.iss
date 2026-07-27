@@ -1,8 +1,8 @@
 [Setup]
-AppName=ImageManager
-AppVersion=1.0.0.2
+AppName=WoodStream ImageManager
+AppVersion=1.0.2.0
 DefaultDirName={autopf}\ImageManager
-DefaultGroupName=ImageManager
+DefaultGroupName=WoodStream ImageManager
 OutputDir=Output
 OutputBaseFilename=ImageManager_Setup
 Compression=lzma2/ultra64
@@ -13,12 +13,15 @@ SetupIconFile=Assets\AppIcon.ico
 PrivilegesRequired=admin
 DisableWelcomePage=no
 
+[Languages]
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+
 [Files]
 Source: "bin\Release\net10.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\ImageManager"; Filename: "{app}\ImageManager.exe"
-Name: "{autodesktop}\ImageManager"; Filename: "{app}\ImageManager.exe"; Tasks: desktopicon
+Name: "{group}\WoodStream ImageManager"; Filename: "{app}\ImageManager.exe"
+Name: "{autodesktop}\WoodStream ImageManager"; Filename: "{app}\ImageManager.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
