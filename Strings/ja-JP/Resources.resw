@@ -172,4 +172,16 @@
   <data name="ImportErrorMessage" xml:space="preserve">
     <value>設定ファイルの読み込みに失敗しました。</value>
   </data>
+  <data name="HelpText.Text" xml:space="preserve">
+    <value>操作説明</value>
+  </data>
+  <data name="HelpMenu.Text" xml:space="preserve">
+    <value>操作説明...</value>
+  </data>
+  <data name="HelpDialogTitle" xml:space="preserve">
+    <value>操作説明</value>
+  </data>
+  <data name="CloseText" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
 </root>

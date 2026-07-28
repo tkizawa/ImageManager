@@ -172,4 +172,16 @@
   <data name="ImportErrorMessage" xml:space="preserve">
     <value>Failed to import settings file.</value>
   </data>
+  <data name="HelpText.Text" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="HelpMenu.Text" xml:space="preserve">
+    <value>User Guide...</value>
+  </data>
+  <data name="HelpDialogTitle" xml:space="preserve">
+    <value>User Guide</value>
+  </data>
+  <data name="CloseText" xml:space="preserve">
+    <value>Close</value>
+  </data>
 </root>
