@@ -12,8 +12,15 @@ namespace ImageManager;
 public partial class MainWindow : Window
 {
     private readonly Services.SettingsService _settingsService = null!;
+    private readonly Services.ImageClassifierService _classifierService = new();
     public ViewModels.MainViewModel ViewModel { get; } = null!;
     private AppWindow _appWindow = null!;
+
+    private ScrollViewer? _thumbnailScrollViewer;
+    private bool _isThumbnailPointerDown;
+    private bool _isThumbnailDragScrolling;
+    private Windows.Foundation.Point _thumbnailStartPoint;
+    private Windows.Foundation.Point _thumbnailLastPoint;
 
     public MainWindow()
     {
@@ -43,6 +50,13 @@ public partial class MainWindow : Window
 
         // Handle Ctrl + Wheel
         RootGrid.AddHandler(UIElement.PointerWheelChangedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerWheelChanged), true);
+        
+        // Mouse drag scrolling for ThumbnailGridView
+        ThumbnailGridView.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerPressed), true);
+        ThumbnailGridView.AddHandler(UIElement.PointerMovedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerMoved), true);
+        ThumbnailGridView.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerReleased), true);
+        ThumbnailGridView.AddHandler(UIElement.PointerCanceledEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerReleased), true);
+        ThumbnailGridView.AddHandler(UIElement.PointerCaptureLostEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerReleased), true);
         
         ViewModel.FolderSelectedEvent += async (s, node) => 
         {
@@ -107,6 +121,95 @@ public partial class MainWindow : Window
                 ViewModel.ThumbnailSize = System.Math.Clamp(ViewModel.ThumbnailSize - 20, 50, 500);
             }
         }
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < childrenCount; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+            {
+                return typedChild;
+            }
+            var childOfChild = FindVisualChild<T>(child);
+            if (childOfChild != null)
+            {
+                return childOfChild;
+            }
+        }
+        return null;
+    }
+
+    private void ThumbnailGridView_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(ThumbnailGridView);
+        if (point.Properties.IsLeftButtonPressed || point.Properties.IsMiddleButtonPressed)
+        {
+            _isThumbnailPointerDown = true;
+            _thumbnailStartPoint = point.Position;
+            _thumbnailLastPoint = point.Position;
+            _isThumbnailDragScrolling = false;
+
+            _thumbnailScrollViewer ??= FindVisualChild<ScrollViewer>(ThumbnailGridView);
+        }
+    }
+
+    private void ThumbnailGridView_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (!_isThumbnailPointerDown) return;
+
+        _thumbnailScrollViewer ??= FindVisualChild<ScrollViewer>(ThumbnailGridView);
+        if (_thumbnailScrollViewer == null) return;
+
+        var point = e.GetCurrentPoint(ThumbnailGridView);
+        var currentPosition = point.Position;
+
+        double deltaX = currentPosition.X - _thumbnailStartPoint.X;
+        double deltaY = currentPosition.Y - _thumbnailStartPoint.Y;
+
+        if (!_isThumbnailDragScrolling)
+        {
+            if (System.Math.Abs(deltaX) > 5 || System.Math.Abs(deltaY) > 5)
+            {
+                _isThumbnailDragScrolling = true;
+                ThumbnailGridView.CapturePointer(e.Pointer);
+
+                var prop = typeof(UIElement).GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+                prop?.SetValue(ThumbnailGridView, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.Hand));
+            }
+        }
+
+        if (_isThumbnailDragScrolling)
+        {
+            double stepX = currentPosition.X - _thumbnailLastPoint.X;
+            double stepY = currentPosition.Y - _thumbnailLastPoint.Y;
+
+            double targetVertical = _thumbnailScrollViewer.VerticalOffset - stepY;
+            double targetHorizontal = _thumbnailScrollViewer.HorizontalOffset - stepX;
+
+            _thumbnailScrollViewer.ChangeView(targetHorizontal, targetVertical, null, disableAnimation: true);
+            _thumbnailLastPoint = currentPosition;
+
+            e.Handled = true;
+        }
+    }
+
+    private void ThumbnailGridView_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (_isThumbnailDragScrolling)
+        {
+            ThumbnailGridView.ReleasePointerCapture(e.Pointer);
+
+            var prop = typeof(UIElement).GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            prop?.SetValue(ThumbnailGridView, null);
+
+            e.Handled = true;
+        }
+
+        _isThumbnailPointerDown = false;
+        _isThumbnailDragScrolling = false;
     }
 
     private async void ThumbnailGridView_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
@@ -408,6 +511,29 @@ public partial class MainWindow : Window
         {
             System.IO.File.WriteAllText("crash.log", ex.ToString());
         }
+    }
+
+    private async void ClassifyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Images.Count == 0)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "AI自動分類",
+                Content = "分類対象の画像が読み込まれていません。まずフォルダを選択してください。",
+                CloseButtonText = "OK",
+                XamlRoot = RootGrid.XamlRoot
+            };
+            await dialog.ShowAsync();
+            return;
+        }
+
+        var classifyDialog = new ClassifyDialog(_classifierService, ViewModel.Images, ViewModel.CurrentFolderPath)
+        {
+            XamlRoot = RootGrid.XamlRoot
+        };
+
+        await classifyDialog.ShowAsync();
     }
 
     private UIElement CreateHelpContent(bool isJa)

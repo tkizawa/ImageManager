@@ -50,6 +50,9 @@ namespace ImageManager.Models
         [ObservableProperty]
         private string _focalLength = string.Empty;
 
+        [ObservableProperty]
+        private string _category = string.Empty;
+
         public bool IsExifLoaded { get; private set; }
 
         public ImageFile(string path)

@@ -1,0 +1,33 @@
+<ContentDialog
+    x:Class="ImageManager.ClassifyDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="AI 画像自動分類"
+    PrimaryButtonText="分類開始"
+    CloseButtonText="閉じる"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="12" Width="380">
+        <TextBlock Text="ローカルAI（ONNX Runtime）を使用して画像を主要カテゴリー（人物・風景・動物・食べ物・乗り物・建物・文書）に分類します。"
+                   TextWrapping="Wrap" Foreground="Gray" FontSize="13" />
+
+        <Border Background="#F0F4F8" CornerRadius="4" Padding="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="&#xE9D9;" Foreground="#0066CC" />
+                <TextBlock x:Name="DeviceStatusText" Text="判定エンジン: DirectML (GPU加速)" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="分類動作の選択:" FontWeight="SemiBold" Margin="0,5,0,0"/>
+
+        <RadioButton x:Name="CopyRadio" Content="カテゴリー毎のサブフォルダーに複製（コピー）" IsChecked="True" />
+        <RadioButton x:Name="MoveRadio" Content="カテゴリー毎のサブフォルダーに移動" />
+        <RadioButton x:Name="TagOnlyRadio" Content="属性（タグ）の付与のみ" />
+
+        <!-- Progress Section -->
+        <StackPanel x:Name="ProgressArea" Visibility="Collapsed" Spacing="6" Margin="0,10,0,0">
+            <TextBlock x:Name="ProgressStatusText" Text="準備中..." FontSize="13" />
+            <ProgressBar x:Name="ClassifyProgressBar" Value="0" Maximum="100" Height="6" />
+        </StackPanel>
+    </StackPanel>
+</ContentDialog>
