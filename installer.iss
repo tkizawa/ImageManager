@@ -1,6 +1,6 @@
 [Setup]
 AppName=WoodStream ImageManager
-AppVersion=1.0.4.0
+AppVersion=1.0.5.0
 DefaultDirName={autopf}\ImageManager
 DefaultGroupName=WoodStream ImageManager
 OutputDir=Output
