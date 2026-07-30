@@ -9,11 +9,11 @@
 
     <StackPanel Spacing="12" Width="380">
         <TextBlock Text="ローカルAI（ONNX Runtime）を使用して画像を主要カテゴリー（人物・風景・動物・食べ物・乗り物・建物・文書）に分類します。"
-                   TextWrapping="Wrap" Foreground="Gray" FontSize="13" />
+                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13" />
 
-        <Border Background="#F0F4F8" CornerRadius="4" Padding="10">
+        <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="4" Padding="10">
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="&#xE9D9;" Foreground="#0066CC" />
+                <FontIcon Glyph="&#xE9D9;" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                 <TextBlock x:Name="DeviceStatusText" Text="判定エンジン: DirectML (GPU加速)" FontWeight="SemiBold" VerticalAlignment="Center" />
             </StackPanel>
         </Border>
