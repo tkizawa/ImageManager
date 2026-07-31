@@ -568,6 +568,15 @@ public partial class MainWindow : Window
                 "【EXIFメタデータ】: ファイルサイズ・作成日に加え、撮影日、カメラモデル、レンズ、F値、ISO、露出時間を表示。"
             }));
 
+            stack.Children.Add(CreateHelpSection("🪟 画像ビュアー (別ウィンドウ)", new[]
+            {
+                "【起動】: サムネイルをダブルクリックすると別ウィンドウで開きます。",
+                "【画像切り替え】: 左右のカーソルキー、またはマウスのホイール。",
+                "【拡大縮小】: Ctrlキーを押しながらマウスのホイール。",
+                "【移動】: マウスのドラッグアンドドロップで画像表示を移動。",
+                "【閉じる】: Escキー。"
+            }));
+
             stack.Children.Add(CreateHelpSection("⚙️ 設定のインポート / エクスポート", new[]
             {
                 "【設定メニュー】: 画面左上の「設定（歯車）」ボタンからドロップダウンメニューを開きます。",
@@ -600,6 +609,15 @@ public partial class MainWindow : Window
             {
                 "[Preview Pane]: Click any thumbnail to preview the image on the right side.",
                 "[EXIF Properties]: View file size, date modified, camera, lens, F-stop, exposure time, ISO, and focal length."
+            }));
+
+            stack.Children.Add(CreateHelpSection("🪟 Image Viewer (Separate Window)", new[]
+            {
+                "[Open]: Double-click a thumbnail to open in a separate window.",
+                "[Navigate]: Left/Right arrow keys, or mouse wheel.",
+                "[Zoom]: Hold Ctrl + Mouse wheel.",
+                "[Pan]: Mouse drag and drop to move the image.",
+                "[Close]: Esc key."
             }));
 
             stack.Children.Add(CreateHelpSection("⚙️ Import / Export Settings", new[]
