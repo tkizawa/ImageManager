@@ -22,9 +22,9 @@ public sealed partial class ClassifyDialog : ContentDialog
         _images = images;
         _targetFolderPath = targetFolderPath;
 
-        DeviceStatusText.Text = _classifierService.IsDirectMLActive 
-            ? "判定エンジン: ONNX DirectML (GPU加速)" 
-            : "判定エンジン: ONNX CPU モード";
+        DeviceStatusText.Text = _classifierService.IsModelLoaded
+            ? (_classifierService.IsDirectMLActive ? "判定エンジン: ONNX DirectML (GPU加速)" : "判定エンジン: ONNX CPU モード")
+            : "判定エンジン: ルールベース AI (特徴・色調解析)";
 
         this.PrimaryButtonClick += ClassifyDialog_PrimaryButtonClick;
         this.CloseButtonClick += ClassifyDialog_CloseButtonClick;

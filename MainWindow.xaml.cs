@@ -577,6 +577,12 @@ public partial class MainWindow : Window
                 "【閉じる】: Escキー。"
             }));
 
+            stack.Children.Add(CreateHelpSection("🤖 AI自動分類", new[]
+            {
+                "【AI自動分類】: ヘッダーの「AI自動分類」ボタンからダイアログを起動。",
+                "【自動判別・分類】: ONNX Runtime（GPU/CPU）または色調・特徴解析により画像を主要カテゴリー（人物・風景・動物・食べ物・乗り物・建物・文書）に判定し、「サブフォルダにコピー」「サブフォルダに移動」「タグ付与のみ」を選択して一括処理。"
+            }));
+
             stack.Children.Add(CreateHelpSection("⚙️ 設定のインポート / エクスポート", new[]
             {
                 "【設定メニュー】: 画面左上の「設定（歯車）」ボタンからドロップダウンメニューを開きます。",
@@ -618,6 +624,12 @@ public partial class MainWindow : Window
                 "[Zoom]: Hold Ctrl + Mouse wheel.",
                 "[Pan]: Mouse drag and drop to move the image.",
                 "[Close]: Esc key."
+            }));
+
+            stack.Children.Add(CreateHelpSection("🤖 AI Auto Classification", new[]
+            {
+                "[AI Classification]: Click the 'AI自動分類' button in the toolbar.",
+                "[Auto Categorize]: Classify images into categories (People, Landscape, Animal, Food, Vehicle, Building, Document) using ONNX Runtime or heuristic feature analysis."
             }));
 
             stack.Children.Add(CreateHelpSection("⚙️ Import / Export Settings", new[]

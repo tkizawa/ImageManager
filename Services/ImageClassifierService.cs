@@ -101,12 +101,58 @@ public class ImageClassifierService
                 return RunOnnxInference(bytes);
             }
 
+            // Face detection via Windows.Media.FaceAnalysis if supported
+            bool hasFace = await DetectFaceAsync(storageFile);
+            if (hasFace)
+            {
+                return "人物";
+            }
+
             // Heuristic analysis (Document / Landscape / Portrait / Animal / Vehicle / General)
             return RunHeuristicAnalysis(bytes, (int)decoder.PixelWidth, (int)decoder.PixelHeight);
         }
         catch
         {
             return "その他";
+        }
+    }
+
+    private async Task<bool> DetectFaceAsync(StorageFile storageFile)
+    {
+        try
+        {
+            if (!Windows.Media.FaceAnalysis.FaceDetector.IsSupported)
+            {
+                return false;
+            }
+
+            using var stream = await storageFile.OpenAsync(FileAccessMode.Read);
+            var decoder = await BitmapDecoder.CreateAsync(stream);
+
+            uint targetWidth = 640;
+            uint targetHeight = (uint)Math.Max(1, Math.Round(640.0 * decoder.PixelHeight / decoder.PixelWidth));
+
+            var transform = new BitmapTransform
+            {
+                ScaledWidth = targetWidth,
+                ScaledHeight = targetHeight,
+                InterpolationMode = BitmapInterpolationMode.Linear
+            };
+
+            using var softwareBitmap = await decoder.GetSoftwareBitmapAsync(
+                BitmapPixelFormat.Gray8,
+                BitmapAlphaMode.Ignore,
+                transform,
+                ExifOrientationMode.IgnoreExifOrientation,
+                ColorManagementMode.DoNotColorManage);
+
+            var detector = await Windows.Media.FaceAnalysis.FaceDetector.CreateAsync();
+            var faces = await detector.DetectFacesAsync(softwareBitmap);
+            return faces != null && faces.Count > 0;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -176,34 +222,57 @@ public class ImageClassifierService
 
     private string RunHeuristicAnalysis(byte[] bgraBytes, int originalWidth, int originalHeight)
     {
-        double totalLuminance = 0;
         int totalPixels = 224 * 224;
         int whitePixels = 0;
         int darkPixels = 0;
         int greenPixels = 0;
         int bluePixels = 0;
         int skinPixels = 0;
+        int centerSkinPixels = 0;
+        int centerTotalPixels = 0;
 
-        for (int i = 0; i < bgraBytes.Length; i += 4)
+        for (int y = 0; y < 224; y++)
         {
-            byte b = bgraBytes[i];
-            byte g = bgraBytes[i + 1];
-            byte r = bgraBytes[i + 2];
+            bool isCenterY = y >= 30 && y <= 194;
+            for (int x = 0; x < 224; x++)
+            {
+                int i = (y * 224 + x) * 4;
+                byte b = bgraBytes[i];
+                byte g = bgraBytes[i + 1];
+                byte r = bgraBytes[i + 2];
 
-            double lum = 0.299 * r + 0.587 * g + 0.114 * b;
-            totalLuminance += lum;
+                double lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
-            if (lum > 230) whitePixels++;
-            if (lum < 30) darkPixels++;
+                if (lum > 230) whitePixels++;
+                if (lum < 30) darkPixels++;
 
-            // Green (nature/plants)
-            if (g > r + 20 && g > b + 20) greenPixels++;
+                // Green (nature/plants)
+                if (g > r + 15 && g > b + 15) greenPixels++;
 
-            // Blue (sky/water)
-            if (b > r + 20 && b > g + 10) bluePixels++;
+                // Blue (sky/water)
+                if (b > r + 15 && b > g + 10) bluePixels++;
 
-            // Skin tones estimation (R > G > B, R > 60)
-            if (r > 60 && g > 40 && b > 20 && r > g && g > b && (r - g) > 15) skinPixels++;
+                // Skin tone estimation using YCbCr + RGB rules
+                double cb = -0.168736 * r - 0.331264 * g + 0.5 * b + 128;
+                double cr = 0.5 * r - 0.418688 * g - 0.081312 * b + 128;
+
+                bool isSkin = (cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173) ||
+                              (r > 45 && g > 25 && b > 15 && r > g && (r - g) >= 6 && (r - b) >= 8 && Math.Abs(g - b) <= 50);
+
+                if (isSkin)
+                {
+                    skinPixels++;
+                    if (isCenterY && x >= 30 && x <= 194)
+                    {
+                        centerSkinPixels++;
+                    }
+                }
+
+                if (isCenterY && x >= 30 && x <= 194)
+                {
+                    centerTotalPixels++;
+                }
+            }
         }
 
         double whiteRatio = (double)whitePixels / totalPixels;
@@ -211,15 +280,20 @@ public class ImageClassifierService
         double greenRatio = (double)greenPixels / totalPixels;
         double blueRatio = (double)bluePixels / totalPixels;
         double skinRatio = (double)skinPixels / totalPixels;
+        double centerSkinRatio = centerTotalPixels > 0 ? (double)centerSkinPixels / centerTotalPixels : 0;
 
-        // High white background + high contrast -> Document / Screenshot
-        if (whiteRatio > 0.45 && darkRatio > 0.1) return "文書";
+        // 1. High white background + contrast -> Document / Screenshot
+        if (whiteRatio > 0.45 && darkRatio > 0.08) return "文書";
 
-        // Green + Blue high ratio -> Landscape
-        if (greenRatio + blueRatio > 0.25) return "風景";
+        // 2. People check (skin ratio in center or overall skin ratio)
+        // Even in outdoor settings (greenery background), if there is a person (skin ratio >= 1.8% or center skin ratio >= 2.2%), classify as "人物"
+        if (skinRatio >= 0.018 || centerSkinRatio >= 0.022) return "人物";
 
-        // High skin ratio -> People
-        if (skinRatio > 0.18) return "人物";
+        // 3. Landscape check
+        if (greenRatio + blueRatio > 0.22) return "風景";
+
+        // 4. Fallback for subjects with subtle skin tones (neck/hands/ear profile)
+        if (skinRatio >= 0.008 && greenRatio < 0.15) return "人物";
 
         return "その他";
     }
