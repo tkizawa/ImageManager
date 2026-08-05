@@ -1,4 +1,4 @@
-# Microsoft Store リリースノート (What's New) - v1.0.5.0
+# Microsoft Store リリースノート (What's New) - v1.0.6.0
 
 Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新内容 (What's new)」へコピー＆ペーストしてご利用ください。
 
@@ -7,13 +7,13 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇯🇵 日本語 (ja-JP)
 
 ```text
-【バージョン 1.0.5.0 の更新内容】
+【バージョン 1.0.6.0 の更新内容】
 
-1. ダークモード表示時の視認性改善
-   ・Windowsのテーマ設定（ダークモード）において、文字色が白・背景色が白となり文字が見づらくなる問題を修正しました。
+1. 履歴フォルダの右クリック操作を拡張
+   ・「履歴」タブ内のフォルダ右クリックメニューから、直接「お気に入りに追加」が行えるようになりました。
 
-2. 安定性および動作の向上
-   ・画面UIレイアウトの調整およびテーマ切り替え動作の安定性を向上しました。
+2. AI自動分類機能の判定精度向上
+   ・Windows標準の顔検出機能およびYCbCr色空間・特徴解析の導入により、人物写真の判定精度を大幅に向上しました。
 ```
 
 ---
@@ -21,11 +21,11 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇺🇸 英語 (en-US)
 
 ```text
-[What's New in Version 1.0.5.0]
+[What's New in Version 1.0.6.0]
 
-1. Theme & Dark Mode Readability Improvements
-   - Fixed an issue where text became unreadable in Windows Dark Mode due to hardcoded background colors.
+1. History Tab Enhancements
+   - Added "Add to Favorites" option to the context menu when right-clicking folders in the History tab.
 
-2. UI & Stability Enhancements
-   - Improved UI layout performance and dynamic theme adjustment across different system settings.
+2. AI Image Classification Accuracy Improvements
+   - Significantly improved person recognition accuracy using Windows native Face Detector and YCbCr skin tone feature analysis.
 ```
