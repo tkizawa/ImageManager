@@ -257,9 +257,9 @@ public partial class MainWindow : Window
 
     private void AddFavoriteFolder_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is MenuFlyoutItem item && item.Tag is ViewModels.DirectoryNodeViewModel node)
+        if (sender is MenuFlyoutItem item && item.Tag != null)
         {
-            ViewModel.AddFavoriteFolderCommand.Execute(node);
+            ViewModel.AddFavoriteFolderCommand.Execute(item.Tag);
         }
     }
 

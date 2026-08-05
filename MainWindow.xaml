@@ -140,6 +140,9 @@
                                             <MenuFlyoutItem x:Uid="OpenMenu" 
                                                             Click="OpenHistoryFolder_Click" 
                                                             Tag="{Binding}" />
+                                            <MenuFlyoutItem x:Uid="AddToFavoritesMenu" 
+                                                            Click="AddFavoriteFolder_Click" 
+                                                            Tag="{Binding}" />
                                             <MenuFlyoutItem x:Uid="RemoveFromHistoryMenu" 
                                                             Click="RemoveHistoryFolder_Click" 
                                                             Tag="{Binding}" />

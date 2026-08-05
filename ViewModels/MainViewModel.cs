@@ -283,11 +283,21 @@ namespace ImageManager.ViewModels
         }
 
         [RelayCommand]
-        private void AddFavoriteFolder(DirectoryNodeViewModel? node)
+        private void AddFavoriteFolder(object? parameter)
         {
-            if (node != null && !FavoriteFolders.Contains(node.FullPath))
+            string? path = null;
+            if (parameter is DirectoryNodeViewModel node)
             {
-                FavoriteFolders.Add(node.FullPath);
+                path = node.FullPath;
+            }
+            else if (parameter is string strPath)
+            {
+                path = strPath;
+            }
+
+            if (!string.IsNullOrEmpty(path) && !FavoriteFolders.Contains(path))
+            {
+                FavoriteFolders.Add(path);
                 SaveFavorites();
             }
         }
