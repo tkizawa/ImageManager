@@ -154,6 +154,77 @@
                     </ListView.ItemTemplate>
                 </ListView>
             </TabViewItem>
+
+            <!-- ライブラリタブ -->
+            <TabViewItem x:Uid="LibraryTab" IsClosable="False">
+                <Grid Margin="0,5,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    
+                    <Button x:Uid="NewLibraryButton" Click="NewLibrary_Click" Margin="5,0,5,5" HorizontalAlignment="Stretch">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                                <TextBlock x:Uid="NewLibraryText" Text="新規ライブラリ" />
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+
+                    <TreeView Grid.Row="1" x:Name="LibraryTreeView"
+                              ItemsSource="{Binding Libraries}"
+                              ItemInvoked="LibraryTreeView_ItemInvoked">
+                        <TreeView.ItemTemplate>
+                            <DataTemplate>
+                                <TreeViewItem ItemsSource="{Binding Children}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="{Binding IconGlyph}" FontSize="14"/>
+                                        <TextBlock Text="{Binding Name}">
+                                            <TextBlock.ContextFlyout>
+                                                <MenuFlyout Opening="LibraryNode_ContextFlyout_Opening">
+                                                    <MenuFlyoutItem x:Name="AddFolderMenuItem"
+                                                                    x:Uid="AddFolderToLibraryMenu" 
+                                                                    Click="AddFolderToLibrary_Click" 
+                                                                    Tag="{Binding}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE8B7;"/>
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                    <MenuFlyoutItem x:Name="RenameLibraryMenuItem"
+                                                                    x:Uid="RenameLibraryMenu" 
+                                                                    Click="RenameLibrary_Click" 
+                                                                    Tag="{Binding}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE8AC;"/>
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                    <MenuFlyoutItem x:Name="DeleteLibraryMenuItem"
+                                                                    x:Uid="DeleteLibraryMenu" 
+                                                                    Click="DeleteLibrary_Click" 
+                                                                    Tag="{Binding}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE74D;"/>
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                    <MenuFlyoutItem x:Name="RemoveFolderMenuItem"
+                                                                    x:Uid="RemoveFromLibraryMenu" 
+                                                                    Click="RemoveFolderFromLibrary_Click" 
+                                                                    Tag="{Binding}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE74D;"/>
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                </MenuFlyout>
+                                            </TextBlock.ContextFlyout>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </TreeViewItem>
+                            </DataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Grid>
+            </TabViewItem>
         </TabView>
 
         <!-- Splitter 1 -->

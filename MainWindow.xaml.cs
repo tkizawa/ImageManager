@@ -685,4 +685,149 @@ public partial class MainWindow : Window
 
         return section;
     }
+
+    #region Library Tab Handlers
+
+    private async void NewLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        var resourceLoader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+        string dialogTitle = resourceLoader.GetString("NewLibraryDialogTitle");
+        if (string.IsNullOrEmpty(dialogTitle)) dialogTitle = "新規ライブラリ作成";
+
+        string placeholder = resourceLoader.GetString("LibraryNamePlaceholder");
+        if (string.IsNullOrEmpty(placeholder)) placeholder = "ライブラリ名を入力";
+
+        string okText = resourceLoader.GetString("OKText");
+        if (string.IsNullOrEmpty(okText)) okText = "OK";
+
+        string cancelText = resourceLoader.GetString("CancelText");
+        if (string.IsNullOrEmpty(cancelText)) cancelText = "キャンセル";
+
+        var inputTextBox = new TextBox
+        {
+            PlaceholderText = placeholder,
+            Margin = new Thickness(0, 10, 0, 0)
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = dialogTitle,
+            Content = inputTextBox,
+            PrimaryButtonText = okText,
+            CloseButtonText = cancelText,
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = RootGrid.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(inputTextBox.Text))
+        {
+            ViewModel.CreateLibrary(inputTextBox.Text.Trim());
+        }
+    }
+
+    private async void LibraryTreeView_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItem is ViewModels.LibraryNodeViewModel node)
+        {
+            if (!node.IsLibrary && !string.IsNullOrEmpty(node.FullPath))
+            {
+                await ViewModel.SelectFolderFromTreeAsync(node.FullPath);
+            }
+        }
+    }
+
+    private void LibraryNode_ContextFlyout_Opening(object sender, object e)
+    {
+        if (sender is MenuFlyout flyout && flyout.Target is FrameworkElement element && element.DataContext is ViewModels.LibraryNodeViewModel node)
+        {
+            foreach (var item in flyout.Items)
+            {
+                if (item is MenuFlyoutItem menuItem)
+                {
+                    if (menuItem.Name == "AddFolderMenuItem" || menuItem.Name == "RenameLibraryMenuItem" || menuItem.Name == "DeleteLibraryMenuItem")
+                    {
+                        menuItem.Visibility = node.IsLibrary ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                    else if (menuItem.Name == "RemoveFolderMenuItem")
+                    {
+                        menuItem.Visibility = node.IsTopLevelFolder ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                }
+            }
+        }
+    }
+
+    private async void AddFolderToLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is ViewModels.LibraryNodeViewModel libraryNode && libraryNode.IsLibrary)
+        {
+            var picker = new Windows.Storage.Pickers.FolderPicker();
+            IntPtr hWnd = WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hWnd);
+            picker.FileTypeFilter.Add("*");
+
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder != null)
+            {
+                ViewModel.AddFolderToLibrary(libraryNode, folder.Path);
+            }
+        }
+    }
+
+    private async void RenameLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is ViewModels.LibraryNodeViewModel libraryNode && libraryNode.IsLibrary)
+        {
+            var resourceLoader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+            string dialogTitle = resourceLoader.GetString("RenameLibraryDialogTitle");
+            if (string.IsNullOrEmpty(dialogTitle)) dialogTitle = "ライブラリ名の変更";
+
+            string okText = resourceLoader.GetString("OKText");
+            if (string.IsNullOrEmpty(okText)) okText = "OK";
+
+            string cancelText = resourceLoader.GetString("CancelText");
+            if (string.IsNullOrEmpty(cancelText)) cancelText = "キャンセル";
+
+            var inputTextBox = new TextBox
+            {
+                Text = libraryNode.Name,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = dialogTitle,
+                Content = inputTextBox,
+                PrimaryButtonText = okText,
+                CloseButtonText = cancelText,
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = RootGrid.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(inputTextBox.Text))
+            {
+                ViewModel.RenameLibrary(libraryNode, inputTextBox.Text.Trim());
+            }
+        }
+    }
+
+    private void DeleteLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is ViewModels.LibraryNodeViewModel libraryNode && libraryNode.IsLibrary)
+        {
+            ViewModel.DeleteLibrary(libraryNode);
+        }
+    }
+
+    private void RemoveFolderFromLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is ViewModels.LibraryNodeViewModel folderNode && !folderNode.IsLibrary)
+        {
+            ViewModel.RemoveFolderFromLibrary(folderNode);
+        }
+    }
+
+    #endregion
 }

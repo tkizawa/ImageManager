@@ -184,4 +184,37 @@
   <data name="CloseText" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="LibraryTab.Header" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="NewLibraryButton.Content" xml:space="preserve">
+    <value>New Library</value>
+  </data>
+  <data name="AddFolderToLibraryMenu.Text" xml:space="preserve">
+    <value>Add Folder...</value>
+  </data>
+  <data name="DeleteLibraryMenu.Text" xml:space="preserve">
+    <value>Delete Library</value>
+  </data>
+  <data name="RemoveFromLibraryMenu.Text" xml:space="preserve">
+    <value>Remove from Library</value>
+  </data>
+  <data name="NewLibraryDialogTitle" xml:space="preserve">
+    <value>Create New Library</value>
+  </data>
+  <data name="LibraryNamePlaceholder" xml:space="preserve">
+    <value>Enter library name</value>
+  </data>
+  <data name="RenameLibraryMenu.Text" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="RenameLibraryDialogTitle" xml:space="preserve">
+    <value>Rename Library</value>
+  </data>
+  <data name="OKText" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="CancelText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
 </root>

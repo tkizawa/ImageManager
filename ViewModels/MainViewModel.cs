@@ -67,6 +67,9 @@ namespace ImageManager.ViewModels
         private ObservableCollection<string> _historyFolders = new();
 
         [ObservableProperty]
+        private ObservableCollection<LibraryNodeViewModel> _libraries = new();
+
+        [ObservableProperty]
         private int _sortFieldIndex = 0; // 0: LastWriteTime, 1: DateTaken
 
         [ObservableProperty]
@@ -202,6 +205,40 @@ namespace ImageManager.ViewModels
                 foreach (var folder in settings.HistoryFolders)
                 {
                     HistoryFolders.Add(folder);
+                }
+            }
+
+            if (settings.Libraries != null)
+            {
+                Libraries.Clear();
+                foreach (var libGroup in settings.Libraries)
+                {
+                    var libNode = new LibraryNodeViewModel
+                    {
+                        Id = libGroup.Id,
+                        Name = libGroup.Name,
+                        IsLibrary = true
+                    };
+                    if (libGroup.FolderPaths != null)
+                    {
+                        foreach (var folderPath in libGroup.FolderPaths)
+                        {
+                            var folderName = System.IO.Path.GetFileName(folderPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+                            if (string.IsNullOrEmpty(folderName)) folderName = folderPath;
+
+                            var folderNode = new LibraryNodeViewModel
+                            {
+                                Id = System.Guid.NewGuid().ToString(),
+                                Name = folderName,
+                                FullPath = folderPath,
+                                IsLibrary = false,
+                                ParentLibrary = libNode
+                            };
+                            folderNode.CheckAndAddDummyChild();
+                            libNode.Children.Add(folderNode);
+                        }
+                    }
+                    Libraries.Add(libNode);
                 }
             }
 
@@ -506,6 +543,40 @@ namespace ImageManager.ViewModels
                         }
                     }
 
+                    Libraries.Clear();
+                    if (imported.Libraries != null)
+                    {
+                        foreach (var libGroup in imported.Libraries)
+                        {
+                            var libNode = new LibraryNodeViewModel
+                            {
+                                Id = libGroup.Id,
+                                Name = libGroup.Name,
+                                IsLibrary = true
+                            };
+                            if (libGroup.FolderPaths != null)
+                            {
+                                foreach (var folderPath in libGroup.FolderPaths)
+                                {
+                                    var folderName = System.IO.Path.GetFileName(folderPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+                                    if (string.IsNullOrEmpty(folderName)) folderName = folderPath;
+
+                                    var folderNode = new LibraryNodeViewModel
+                                    {
+                                        Id = System.Guid.NewGuid().ToString(),
+                                        Name = folderName,
+                                        FullPath = folderPath,
+                                        IsLibrary = false,
+                                        ParentLibrary = libNode
+                                    };
+                                    folderNode.CheckAndAddDummyChild();
+                                    libNode.Children.Add(folderNode);
+                                }
+                            }
+                            Libraries.Add(libNode);
+                        }
+                    }
+
                     if (!string.IsNullOrEmpty(imported.LastOpenedFolder) && System.IO.Directory.Exists(imported.LastOpenedFolder))
                     {
                         await SelectFolderFromTreeAsync(imported.LastOpenedFolder);
@@ -519,6 +590,88 @@ namespace ImageManager.ViewModels
                     ShowMessageRequested?.Invoke(this, ("ImportErrorTitle", "ImportErrorMessage"));
                 }
             }
+        }
+
+        public LibraryNodeViewModel CreateLibrary(string name)
+        {
+            var library = new LibraryGroup
+            {
+                Id = System.Guid.NewGuid().ToString(),
+                Name = name,
+                FolderPaths = new System.Collections.Generic.List<string>()
+            };
+
+            var libNode = new LibraryNodeViewModel
+            {
+                Id = library.Id,
+                Name = library.Name,
+                IsLibrary = true
+            };
+
+            Libraries.Add(libNode);
+            SaveLibrariesToSettings();
+            return libNode;
+        }
+
+        public void DeleteLibrary(LibraryNodeViewModel libraryNode)
+        {
+            if (libraryNode == null || !libraryNode.IsLibrary) return;
+            Libraries.Remove(libraryNode);
+            SaveLibrariesToSettings();
+        }
+
+        public void RenameLibrary(LibraryNodeViewModel libraryNode, string newName)
+        {
+            if (libraryNode == null || !libraryNode.IsLibrary || string.IsNullOrWhiteSpace(newName)) return;
+            libraryNode.Name = newName.Trim();
+            SaveLibrariesToSettings();
+        }
+
+        public LibraryNodeViewModel? AddFolderToLibrary(LibraryNodeViewModel libraryNode, string folderPath)
+        {
+            if (libraryNode == null || !libraryNode.IsLibrary || string.IsNullOrWhiteSpace(folderPath)) return null;
+
+            if (libraryNode.Children.Any(c => c.FullPath.Equals(folderPath, System.StringComparison.OrdinalIgnoreCase)))
+            {
+                return null;
+            }
+
+            var folderName = System.IO.Path.GetFileName(folderPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+            if (string.IsNullOrEmpty(folderName)) folderName = folderPath;
+
+            var folderNode = new LibraryNodeViewModel
+            {
+                Id = System.Guid.NewGuid().ToString(),
+                Name = folderName,
+                FullPath = folderPath,
+                IsLibrary = false,
+                ParentLibrary = libraryNode
+            };
+            folderNode.CheckAndAddDummyChild();
+
+            libraryNode.Children.Add(folderNode);
+            libraryNode.IsExpanded = true;
+            SaveLibrariesToSettings();
+            return folderNode;
+        }
+
+        public void RemoveFolderFromLibrary(LibraryNodeViewModel folderNode)
+        {
+            if (folderNode == null || folderNode.IsLibrary || folderNode.ParentLibrary == null) return;
+            folderNode.ParentLibrary.Children.Remove(folderNode);
+            SaveLibrariesToSettings();
+        }
+
+        public void SaveLibrariesToSettings()
+        {
+            var settings = _settingsService.Load();
+            settings.Libraries = Libraries.Select(lib => new LibraryGroup
+            {
+                Id = lib.Id,
+                Name = lib.Name,
+                FolderPaths = lib.Children.Select(c => c.FullPath).ToList()
+            }).ToList();
+            _settingsService.Save(settings);
         }
     }
 }

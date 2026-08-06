@@ -184,4 +184,37 @@
   <data name="CloseText" xml:space="preserve">
     <value>閉じる</value>
   </data>
+  <data name="LibraryTab.Header" xml:space="preserve">
+    <value>ライブラリ</value>
+  </data>
+  <data name="NewLibraryButton.Content" xml:space="preserve">
+    <value>新規ライブラリ</value>
+  </data>
+  <data name="AddFolderToLibraryMenu.Text" xml:space="preserve">
+    <value>フォルダを追加...</value>
+  </data>
+  <data name="DeleteLibraryMenu.Text" xml:space="preserve">
+    <value>ライブラリを削除</value>
+  </data>
+  <data name="RemoveFromLibraryMenu.Text" xml:space="preserve">
+    <value>ライブラリから削除</value>
+  </data>
+  <data name="NewLibraryDialogTitle" xml:space="preserve">
+    <value>新規ライブラリ作成</value>
+  </data>
+  <data name="LibraryNamePlaceholder" xml:space="preserve">
+    <value>ライブラリ名を入力</value>
+  </data>
+  <data name="RenameLibraryMenu.Text" xml:space="preserve">
+    <value>名前を変更</value>
+  </data>
+  <data name="RenameLibraryDialogTitle" xml:space="preserve">
+    <value>ライブラリ名の変更</value>
+  </data>
+  <data name="OKText" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="CancelText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
 </root>
