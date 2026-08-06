@@ -1,4 +1,4 @@
-# Microsoft Store リリースノート (What's New) - v1.0.6.0
+# Microsoft Store リリースノート (What's New) - v1.0.7.0
 
 Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新内容 (What's new)」へコピー＆ペーストしてご利用ください。
 
@@ -7,13 +7,11 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇯🇵 日本語 (ja-JP)
 
 ```text
-【バージョン 1.0.6.0 の更新内容】
+【バージョン 1.0.7.0 の更新内容】
 
-1. 履歴フォルダの右クリック操作を拡張
-   ・「履歴」タブ内のフォルダ右クリックメニューから、直接「お気に入りに追加」が行えるようになりました。
-
-2. ARM64 アーキテクチャにネイティブ対応
-   ・Snapdragon 搭載 PC（Copilot+ PC や Surface 等）向けに ARM64 ネイティブ版パッケージを追加し、パフォーマンス向上と省電力化を実現しました。
+1. 「ライブラリ」機能の追加
+   ・複数のフォルダを任意の名前のグループにまとめて管理できる「ライブラリ」タブを追加しました。
+   ・「新規ライブラリ」から作成し、関連するフォルダをまとめて整理することで、より素早いアクセスが可能になります。
 ```
 
 ---
@@ -21,11 +19,9 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇺🇸 英語 (en-US)
 
 ```text
-[What's New in Version 1.0.6.0]
+[What's New in Version 1.0.7.0]
 
-1. History Tab Enhancements
-   - Added "Add to Favorites" option to the context menu when right-clicking folders in the History tab.
-
-2. Native ARM64 Architecture Support
-   - Added native ARM64 package support for Snapdragon-powered PCs (Copilot+ PCs, Surface, etc.), providing faster performance and improved battery efficiency.
+1. New "Library" Feature
+   - Added a "Library" tab that allows you to group and manage multiple folders under custom names.
+   - You can now create new libraries and organize related folders for quicker and easier access.
 ```

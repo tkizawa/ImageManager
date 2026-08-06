@@ -554,7 +554,8 @@ public partial class MainWindow : Window
             {
                 "【ツリータブ】: ドライブやフォルダを階層表示。「フォルダを開く...」ボタンからも直接選択可能。",
                 "【お気に入りタブ】: よく使うフォルダを登録。ツリーや履歴の右クリックメニュー「お気に入りに追加」から追加。",
-                "【履歴タブ】: 直近で開いたフォルダ（最大20件）を自動記録。ワンクリックで移動、右クリックで削除。"
+                "【履歴タブ】: 直近で開いたフォルダ（最大20件）を自動記録。ワンクリックで移動、右クリックで削除。",
+                "【ライブラリタブ】: 複数のフォルダを任意の名前でグループ化して管理。「新規ライブラリ」から作成し、フォルダを追加可能。"
             }));
 
             stack.Children.Add(CreateHelpSection("🖼️ サムネイル表示とズーム", new[]
@@ -603,7 +604,8 @@ public partial class MainWindow : Window
             {
                 "[Folders Tab]: View drive and folder hierarchies. Or click 'Open Folder...' to select a directory.",
                 "[Favorites Tab]: Access saved favorite folders. Right-click folders in Tree or History to add.",
-                "[History Tab]: Auto-saves recently opened folders (up to 20). Click to reopen, right-click to remove."
+                "[History Tab]: Auto-saves recently opened folders (up to 20). Click to reopen, right-click to remove.",
+                "[Library Tab]: Group and manage multiple folders. Click 'New Library' to create a group and add folders."
             }));
 
             stack.Children.Add(CreateHelpSection("🖼️ Thumbnails & Zoom", new[]
