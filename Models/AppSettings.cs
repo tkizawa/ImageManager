@@ -19,5 +19,10 @@ namespace ImageManager.Models
 
         public System.Collections.Generic.List<string> FavoriteFolders { get; set; } = new();
         public System.Collections.Generic.List<string> HistoryFolders { get; set; } = new();
+
+        public double ThumbnailSize { get; set; } = 100;
+        public int SortFieldIndex { get; set; } = 0;
+        public int SortDirectionIndex { get; set; } = 1;
+        public string SelectedImageFilePath { get; set; } = string.Empty;
     }
 }

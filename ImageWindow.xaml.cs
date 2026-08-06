@@ -10,13 +10,13 @@ namespace ImageManager;
 public sealed partial class ImageWindow : Window
 {
     private AppWindow _appWindow = null!;
-    private readonly Services.SettingsService _settingsService;
+    private readonly Services.ISettingsService _settingsService;
     private readonly ViewModels.MainViewModel _viewModel;
     
     private bool _isDragging = false;
     private Windows.Foundation.Point _lastPointerPosition;
 
-    public ImageWindow(ViewModels.MainViewModel viewModel, Services.SettingsService settingsService)
+    public ImageWindow(ViewModels.MainViewModel viewModel, Services.ISettingsService settingsService)
     {
         this.InitializeComponent();
         _settingsService = settingsService;

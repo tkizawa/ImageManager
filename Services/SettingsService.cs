@@ -5,20 +5,34 @@ using ImageManager.Models;
 
 namespace ImageManager.Services
 {
-    public class SettingsService
+    public class SettingsService : ISettingsService
     {
         private readonly string _settingsFilePath;
 
-        public SettingsService()
+        public SettingsService(string? customSettingsFilePath = null)
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var appFolder = Path.Combine(appData, "ImageManager");
-            Directory.CreateDirectory(appFolder);
-            _settingsFilePath = Path.Combine(appFolder, "settings.json");
+            if (!string.IsNullOrEmpty(customSettingsFilePath))
+            {
+                _settingsFilePath = customSettingsFilePath;
+                var directory = Path.GetDirectoryName(_settingsFilePath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+            }
+            else
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var appFolder = Path.Combine(appData, "ImageManager");
+                Directory.CreateDirectory(appFolder);
+                _settingsFilePath = Path.Combine(appFolder, "settings.json");
+            }
         }
 
         private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
         };
 

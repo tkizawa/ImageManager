@@ -11,7 +11,7 @@ namespace ImageManager.ViewModels
     public partial class MainViewModel : ObservableObject
     {
         private readonly IFileSystemService _fileSystemService;
-        private readonly SettingsService _settingsService;
+        private readonly ISettingsService _settingsService;
 
         [ObservableProperty]
         private string _currentFolderPath = string.Empty;
@@ -32,12 +32,28 @@ namespace ImageManager.ViewModels
             if (value != null)
             {
                 _ = value.LoadExifAsync();
+                var settings = _settingsService.Load();
+                if (settings.SelectedImageFilePath != value.FilePath)
+                {
+                    settings.SelectedImageFilePath = value.FilePath;
+                    _settingsService.Save(settings);
+                }
             }
         }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ThumbnailPanelWidth))]
         private double _thumbnailSize = 100;
+
+        partial void OnThumbnailSizeChanged(double value)
+        {
+            var settings = _settingsService.Load();
+            if (Math.Abs(settings.ThumbnailSize - value) > 0.1)
+            {
+                settings.ThumbnailSize = value;
+                _settingsService.Save(settings);
+            }
+        }
 
         public double ThumbnailPanelWidth => ThumbnailSize + 20;
 
@@ -60,6 +76,10 @@ namespace ImageManager.ViewModels
 
         partial void OnSortFieldIndexChanged(int value)
         {
+            var settings = _settingsService.Load();
+            settings.SortFieldIndex = value;
+            _settingsService.Save(settings);
+
             if (!string.IsNullOrEmpty(CurrentFolderPath))
             {
                 _ = SortImagesAsync();
@@ -68,6 +88,10 @@ namespace ImageManager.ViewModels
 
         partial void OnSortDirectionIndexChanged(int value)
         {
+            var settings = _settingsService.Load();
+            settings.SortDirectionIndex = value;
+            _settingsService.Save(settings);
+
             if (!string.IsNullOrEmpty(CurrentFolderPath))
             {
                 _ = SortImagesAsync();
@@ -107,7 +131,7 @@ namespace ImageManager.ViewModels
                     }
                 });
 
-                _dispatcherQueue?.TryEnqueue(() => 
+                RunOnUIThread(() => 
                 {
                     var selected = SelectedImage;
                     Images.Clear();
@@ -124,20 +148,47 @@ namespace ImageManager.ViewModels
             }
         }
 
-        private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
+        private readonly Microsoft.UI.Dispatching.DispatcherQueue? _dispatcherQueue;
 
-        public MainViewModel(IFileSystemService fileSystemService, SettingsService settingsService)
+        public MainViewModel(IFileSystemService fileSystemService, ISettingsService settingsService)
         {
             _fileSystemService = fileSystemService;
             _settingsService = settingsService;
-            _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            try
+            {
+                _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            }
+            catch
+            {
+                _dispatcherQueue = null;
+            }
             LoadDrives();
+        }
+
+        private void RunOnUIThread(System.Action action)
+        {
+            if (_dispatcherQueue != null)
+            {
+                _dispatcherQueue.TryEnqueue(() => action());
+            }
+            else
+            {
+                action();
+            }
         }
 
         public async Task InitializeAsync()
         {
             var settings = _settingsService.Load();
             
+            if (settings.ThumbnailSize > 0)
+            {
+                ThumbnailSize = settings.ThumbnailSize;
+            }
+
+            SortFieldIndex = settings.SortFieldIndex;
+            SortDirectionIndex = settings.SortDirectionIndex;
+
             if (settings.FavoriteFolders != null)
             {
                 foreach (var folder in settings.FavoriteFolders)
@@ -198,13 +249,17 @@ namespace ImageManager.ViewModels
 
         private void LoadDrives()
         {
-            foreach (var drive in System.IO.DriveInfo.GetDrives())
+            try
             {
-                if (drive.IsReady)
+                foreach (var drive in System.IO.DriveInfo.GetDrives())
                 {
-                    Folders.Add(new DirectoryNodeViewModel(drive.Name));
+                    if (drive.IsReady)
+                    {
+                        Folders.Add(new DirectoryNodeViewModel(drive.Name));
+                    }
                 }
             }
+            catch { }
         }
 
         public async Task SelectFolderFromTreeAsync(string folderPath)
@@ -272,11 +327,29 @@ namespace ImageManager.ViewModels
                         newImages = newImages.OrderByDescending(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                 }
                 
-                _dispatcherQueue?.TryEnqueue(() => 
+                RunOnUIThread(() => 
                 {
                     foreach (var img in newImages)
                     {
                         Images.Add(img);
+                    }
+
+                    var settings = _settingsService.Load();
+                    if (!string.IsNullOrEmpty(settings.SelectedImageFilePath))
+                    {
+                        var target = Images.FirstOrDefault(i => i.FilePath.Equals(settings.SelectedImageFilePath, System.StringComparison.OrdinalIgnoreCase));
+                        if (target != null)
+                        {
+                            SelectedImage = target;
+                        }
+                        else if (Images.Count > 0)
+                        {
+                            SelectedImage = Images[0];
+                        }
+                    }
+                    else if (Images.Count > 0)
+                    {
+                        SelectedImage = Images[0];
                     }
                 });
             });

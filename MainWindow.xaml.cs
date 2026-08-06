@@ -11,7 +11,7 @@ namespace ImageManager;
 
 public partial class MainWindow : Window
 {
-    private readonly Services.SettingsService _settingsService = null!;
+    private readonly Services.ISettingsService _settingsService = null!;
     private readonly Services.ImageClassifierService _classifierService = new();
     public ViewModels.MainViewModel ViewModel { get; } = null!;
     private AppWindow _appWindow = null!;
@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         }
     }
 
-    public MainWindow(Services.SettingsService settingsService, ViewModels.MainViewModel mainViewModel) : this()
+    public MainWindow(Services.ISettingsService settingsService, ViewModels.MainViewModel mainViewModel) : this()
     {
         _settingsService = settingsService;
         ViewModel = mainViewModel;
@@ -470,6 +470,14 @@ public partial class MainWindow : Window
         settings.TreeColumnWidth = SerializeGridLength(RootGrid.ColumnDefinitions[0].Width);
         settings.ThumbnailsColumnWidth = SerializeGridLength(RootGrid.ColumnDefinitions[2].Width);
         settings.PreviewColumnWidth = SerializeGridLength(RootGrid.ColumnDefinitions[4].Width);
+
+        settings.ThumbnailSize = ViewModel.ThumbnailSize;
+        settings.SortFieldIndex = ViewModel.SortFieldIndex;
+        settings.SortDirectionIndex = ViewModel.SortDirectionIndex;
+        if (ViewModel.SelectedImage != null)
+        {
+            settings.SelectedImageFilePath = ViewModel.SelectedImage.FilePath;
+        }
 
         _settingsService.Save(settings);
     }

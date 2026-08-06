@@ -37,4 +37,11 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="ImageManager.Tests\**" />
+    <EmbeddedResource Remove="ImageManager.Tests\**" />
+    <None Remove="ImageManager.Tests\**" />
+    <Page Remove="ImageManager.Tests\**" />
+  </ItemGroup>
+
 </Project>
