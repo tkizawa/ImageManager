@@ -7,16 +7,32 @@
     CloseButtonText="閉じる"
     DefaultButton="Primary">
 
-    <StackPanel Spacing="12" Width="380">
-        <TextBlock Text="ローカルAI（ONNX Runtime）を使用して画像を主要カテゴリー（人物・風景・動物・食べ物・乗り物・建物・文書）に分類します。"
+    <StackPanel Spacing="12" Width="400">
+        <TextBlock Text="AIを使用して画像を主要カテゴリー（人物・風景・建物・食べ物・動物・乗り物・文書・その他）に分類します。"
                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13" />
 
         <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="4" Padding="10">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="&#xE9D9;" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                <TextBlock x:Name="DeviceStatusText" Text="判定エンジン: DirectML (GPU加速)" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <StackPanel Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE9D9;" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                    <TextBlock x:Name="DeviceStatusText" Text="判定エンジンを検出中..." FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
             </StackPanel>
         </Border>
+
+        <!-- Engine Selection -->
+        <TextBlock Text="判定エンジンの選択:" FontWeight="SemiBold" Margin="0,5,0,0"/>
+        <StackPanel Spacing="4">
+            <RadioButton x:Name="RuleBasedRadio" Content="高速ローカルエンジン (顔検出 + 色調解析)" IsChecked="True" Checked="EngineRadio_Checked" />
+            <RadioButton x:Name="OllamaRadio" Content="Ollama ローカルAI (Vision LLM)" Checked="EngineRadio_Checked" />
+        </StackPanel>
+
+        <!-- Ollama Model Selector -->
+        <StackPanel x:Name="OllamaSettingsPanel" Visibility="Collapsed" Spacing="6" Margin="20,0,0,0">
+            <TextBlock Text="Ollama モデル:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <ComboBox x:Name="OllamaModelComboBox" HorizontalAlignment="Stretch" PlaceholderText="モデルを選択してください" />
+            <TextBlock x:Name="OllamaStatusText" Text="" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
 
         <TextBlock Text="分類動作の選択:" FontWeight="SemiBold" Margin="0,5,0,0"/>
 

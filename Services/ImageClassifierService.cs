@@ -28,6 +28,10 @@ public class ImageClassifierService
     public bool IsDirectMLActive => _isDirectMLActive;
     public bool IsModelLoaded => _session != null;
 
+    public OllamaService Ollama { get; } = new OllamaService();
+    public bool UseOllama { get; set; } = false;
+    public string OllamaModelName { get; set; } = "llava";
+
     public ImageClassifierService(string? customModelPath = null)
     {
         _modelPath = customModelPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "models", "classifier.onnx");
@@ -66,11 +70,28 @@ public class ImageClassifierService
         }
     }
 
-    public async Task<string> ClassifyImageAsync(ImageFile imageFile)
+    public async Task<string> ClassifyImageAsync(ImageFile imageFile, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(imageFile.FilePath) || !File.Exists(imageFile.FilePath))
         {
             return "その他";
+        }
+
+        // Priority 1: Ollama Vision AI (if enabled)
+        if (UseOllama && !string.IsNullOrWhiteSpace(OllamaModelName))
+        {
+            try
+            {
+                string? ollamaCategory = await Ollama.ClassifyImageAsync(imageFile.FilePath, OllamaModelName, cancellationToken);
+                if (!string.IsNullOrEmpty(ollamaCategory))
+                {
+                    return ollamaCategory;
+                }
+            }
+            catch
+            {
+                // Fallback to local ONNX / Heuristics on failure
+            }
         }
 
         try
@@ -95,20 +116,20 @@ public class ImageClassifierService
 
             byte[] bytes = pixelData.DetachPixelData();
 
-            // Run ONNX Inference if model is loaded
+            // Priority 2: ONNX Inference if model is loaded
             if (_session != null)
             {
                 return RunOnnxInference(bytes);
             }
 
-            // Face detection via Windows.Media.FaceAnalysis if supported
+            // Priority 3: Face detection via Windows.Media.FaceAnalysis if supported
             bool hasFace = await DetectFaceAsync(storageFile);
             if (hasFace)
             {
                 return "人物";
             }
 
-            // Heuristic analysis (Document / Landscape / Portrait / Animal / Vehicle / General)
+            // Priority 4: Heuristic analysis (Document / Landscape / Portrait / Animal / Vehicle / General)
             return RunHeuristicAnalysis(bytes, (int)decoder.PixelWidth, (int)decoder.PixelHeight);
         }
         catch
@@ -231,9 +252,13 @@ public class ImageClassifierService
         int centerSkinPixels = 0;
         int centerTotalPixels = 0;
 
+        int foodWarmPixels = 0;
+        int centerFoodWarmPixels = 0;
+        int buildingGrayPixels = 0;
+
         for (int y = 0; y < 224; y++)
         {
-            bool isCenterY = y >= 30 && y <= 194;
+            bool isCenterY = y >= 45 && y <= 178;
             for (int x = 0; x < 224; x++)
             {
                 int i = (y * 224 + x) * 4;
@@ -242,33 +267,52 @@ public class ImageClassifierService
                 byte r = bgraBytes[i + 2];
 
                 double lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                bool isCenterX = x >= 45 && x <= 178;
+                bool isCenter = isCenterY && isCenterX;
 
                 if (lum > 230) whitePixels++;
-                if (lum < 30) darkPixels++;
+                if (lum < 35) darkPixels++;
 
-                // Green (nature/plants)
-                if (g > r + 15 && g > b + 15) greenPixels++;
+                // Green (nature/plants/trees)
+                if (g > r + 10 && g > b + 10 && g > 40) greenPixels++;
 
-                // Blue (sky/water)
-                if (b > r + 15 && b > g + 10) bluePixels++;
+                // Blue (sky/water/sea)
+                if (b > r + 15 && b > g + 5 && b > 50) bluePixels++;
 
-                // Skin tone estimation using YCbCr + RGB rules
+                // Strict Skin tone estimation using YCbCr + RGB combined rules
+                // YCbCr: Cb 77..127, Cr 133..173
+                // RGB: R > 95, G > 40, B > 20, R > G, R > B, R-G >= 15, |G-B| <= 40
                 double cb = -0.168736 * r - 0.331264 * g + 0.5 * b + 128;
                 double cr = 0.5 * r - 0.418688 * g - 0.081312 * b + 128;
 
-                bool isSkin = (cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173) ||
-                              (r > 45 && g > 25 && b > 15 && r > g && (r - g) >= 6 && (r - b) >= 8 && Math.Abs(g - b) <= 50);
+                bool isSkin = (cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173) &&
+                              (r > 95 && g > 40 && b > 20 && r > g && r > b && (r - g) >= 15 && Math.Abs(g - b) <= 40);
 
                 if (isSkin)
                 {
                     skinPixels++;
-                    if (isCenterY && x >= 30 && x <= 194)
-                    {
-                        centerSkinPixels++;
-                    }
+                    if (isCenter) centerSkinPixels++;
                 }
 
-                if (isCenterY && x >= 30 && x <= 194)
+                // Food warm colors (vibrant red/orange/yellow/brown in center)
+                // Non-skin high saturation warm tones
+                int maxComponent = Math.Max(r, Math.Max(g, b));
+                int minComponent = Math.Min(r, Math.Min(g, b));
+                double saturation = maxComponent > 0 ? (double)(maxComponent - minComponent) / maxComponent : 0;
+
+                if (r > 100 && r > b + 20 && saturation > 0.25 && !isSkin)
+                {
+                    foodWarmPixels++;
+                    if (isCenter) centerFoodWarmPixels++;
+                }
+
+                // Building/Architecture neutral gray & structured tones
+                if (Math.Abs(r - g) < 15 && Math.Abs(g - b) < 15 && lum >= 40 && lum <= 200)
+                {
+                    buildingGrayPixels++;
+                }
+
+                if (isCenter)
                 {
                     centerTotalPixels++;
                 }
@@ -281,19 +325,25 @@ public class ImageClassifierService
         double blueRatio = (double)bluePixels / totalPixels;
         double skinRatio = (double)skinPixels / totalPixels;
         double centerSkinRatio = centerTotalPixels > 0 ? (double)centerSkinPixels / centerTotalPixels : 0;
+        double foodWarmRatio = (double)foodWarmPixels / totalPixels;
+        double centerFoodWarmRatio = centerTotalPixels > 0 ? (double)centerFoodWarmPixels / centerTotalPixels : 0;
+        double buildingGrayRatio = (double)buildingGrayPixels / totalPixels;
 
-        // 1. High white background + contrast -> Document / Screenshot
-        if (whiteRatio > 0.45 && darkRatio > 0.08) return "文書";
+        // 1. High white background + dark text/lines -> Document / Screenshot ("文書")
+        if (whiteRatio > 0.45 && darkRatio > 0.05) return "文書";
 
-        // 2. People check (skin ratio in center or overall skin ratio)
-        // Even in outdoor settings (greenery background), if there is a person (skin ratio >= 1.8% or center skin ratio >= 2.2%), classify as "人物"
-        if (skinRatio >= 0.018 || centerSkinRatio >= 0.022) return "人物";
+        // 2. Landscape check (Forest, Sky, Ocean, Mountains) ("風景")
+        if (greenRatio + blueRatio > 0.18 || greenRatio > 0.10 || blueRatio > 0.15) return "風景";
 
-        // 3. Landscape check
-        if (greenRatio + blueRatio > 0.22) return "風景";
+        // 3. People check (Requires significant skin ratio in center or overall) ("人物")
+        // Note: DetectFaceAsync runs before this and handles face detection.
+        if (skinRatio >= 0.08 || centerSkinRatio >= 0.10) return "人物";
 
-        // 4. Fallback for subjects with subtle skin tones (neck/hands/ear profile)
-        if (skinRatio >= 0.008 && greenRatio < 0.15) return "人物";
+        // 4. Food check (Vibrant warm colors in center) ("食べ物")
+        if (centerFoodWarmRatio > 0.15 || foodWarmRatio > 0.20) return "食べ物";
+
+        // 5. Building check (Neutral architectural gray/concrete/stone tones) ("建物")
+        if (buildingGrayRatio > 0.40) return "建物";
 
         return "その他";
     }
@@ -314,7 +364,7 @@ public class ImageClassifierService
             if (cancellationToken.IsCancellationRequested) break;
 
             current++;
-            string category = await ClassifyImageAsync(img);
+            string category = await ClassifyImageAsync(img, cancellationToken);
             img.Category = category;
 
             if (mode != ClassificationMode.TagOnly && !string.IsNullOrEmpty(targetDirectory) && Directory.Exists(targetDirectory))

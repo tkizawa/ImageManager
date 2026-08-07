@@ -20,6 +20,22 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host "MSIX Packages built successfully!" -ForegroundColor Green
-Write-Host "x64 MSIX: bin\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages"
-Write-Host "ARM64 MSIX: bin\Release\net10.0-windows10.0.19041.0\win-arm64\AppPackages"
+# Copy generated MSIX packages to shallow AppPackages directory in project root
+$targetDir = Join-Path $PSScriptRoot "AppPackages"
+if (-not (Test-Path $targetDir)) {
+    New-Item -ItemType Directory -Path $targetDir | Out-Null
+}
+
+$x64Msix = Get-ChildItem -Path "$PSScriptRoot\bin\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages" -Recurse -Filter "*.msix" | Select-Object -First 1
+if ($x64Msix) {
+    Copy-Item -Path $x64Msix.FullName -Destination $targetDir -Force
+    Write-Host "Copied x64 MSIX -> $targetDir\$($x64Msix.Name)" -ForegroundColor Yellow
+}
+
+$arm64Msix = Get-ChildItem -Path "$PSScriptRoot\bin\Release\net10.0-windows10.0.19041.0\win-arm64\AppPackages" -Recurse -Filter "*.msix" | Select-Object -First 1
+if ($arm64Msix) {
+    Copy-Item -Path $arm64Msix.FullName -Destination $targetDir -Force
+    Write-Host "Copied ARM64 MSIX -> $targetDir\$($arm64Msix.Name)" -ForegroundColor Yellow
+}
+
+Write-Host "MSIX Packages built successfully and placed in: $targetDir" -ForegroundColor Green

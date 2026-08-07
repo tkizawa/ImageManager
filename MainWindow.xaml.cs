@@ -523,25 +523,32 @@ public partial class MainWindow : Window
 
     private async void ClassifyButton_Click(object sender, RoutedEventArgs e)
     {
-        if (ViewModel.Images.Count == 0)
+        try
         {
-            var dialog = new ContentDialog
+            if (ViewModel.Images.Count == 0)
             {
-                Title = "AI自動分類",
-                Content = "分類対象の画像が読み込まれていません。まずフォルダを選択してください。",
-                CloseButtonText = "OK",
+                var dialog = new ContentDialog
+                {
+                    Title = "AI自動分類",
+                    Content = "分類対象の画像が読み込まれていません。まずフォルダを選択してください。",
+                    CloseButtonText = "OK",
+                    XamlRoot = RootGrid.XamlRoot
+                };
+                await dialog.ShowAsync();
+                return;
+            }
+
+            var classifyDialog = new ClassifyDialog(_classifierService, ViewModel.Images, ViewModel.CurrentFolderPath)
+            {
                 XamlRoot = RootGrid.XamlRoot
             };
-            await dialog.ShowAsync();
-            return;
+
+            await classifyDialog.ShowAsync();
         }
-
-        var classifyDialog = new ClassifyDialog(_classifierService, ViewModel.Images, ViewModel.CurrentFolderPath)
+        catch (Exception ex)
         {
-            XamlRoot = RootGrid.XamlRoot
-        };
-
-        await classifyDialog.ShowAsync();
+            System.IO.File.WriteAllText("crash_classify.log", ex.ToString());
+        }
     }
 
     private UIElement CreateHelpContent(bool isJa)

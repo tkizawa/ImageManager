@@ -25,5 +25,9 @@ namespace ImageManager.Models
         public int SortFieldIndex { get; set; } = 0;
         public int SortDirectionIndex { get; set; } = 1;
         public string SelectedImageFilePath { get; set; } = string.Empty;
+
+        public bool UseOllamaForClassification { get; set; } = false;
+        public string OllamaEndpoint { get; set; } = "http://localhost:11434";
+        public string OllamaModelName { get; set; } = "llava";
     }
 }

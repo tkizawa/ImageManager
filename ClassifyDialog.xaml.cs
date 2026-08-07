@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ImageManager.Models;
 using ImageManager.Services;
@@ -17,17 +18,77 @@ public sealed partial class ClassifyDialog : ContentDialog
 
     public ClassifyDialog(ImageClassifierService classifierService, IEnumerable<ImageFile> images, string targetFolderPath)
     {
-        this.InitializeComponent();
         _classifierService = classifierService;
         _images = images;
         _targetFolderPath = targetFolderPath;
 
-        DeviceStatusText.Text = _classifierService.IsModelLoaded
-            ? (_classifierService.IsDirectMLActive ? "判定エンジン: ONNX DirectML (GPU加速)" : "判定エンジン: ONNX CPU モード")
-            : "判定エンジン: ルールベース AI (特徴・色調解析)";
+        this.InitializeComponent();
 
+        UpdateEngineStatusText();
+
+        this.Loaded += ClassifyDialog_Loaded;
         this.PrimaryButtonClick += ClassifyDialog_PrimaryButtonClick;
         this.CloseButtonClick += ClassifyDialog_CloseButtonClick;
+    }
+
+    private async void ClassifyDialog_Loaded(object sender, RoutedEventArgs e)
+    {
+        await LoadOllamaModelsAsync();
+    }
+
+    private async Task LoadOllamaModelsAsync()
+    {
+        bool available = await _classifierService.Ollama.IsAvailableAsync();
+        if (available)
+        {
+            var models = await _classifierService.Ollama.GetInstalledModelsAsync();
+            if (models.Count > 0)
+            {
+                OllamaModelComboBox.ItemsSource = models;
+                
+                // Select default or first vision-like model
+                int defaultIndex = models.FindIndex(m => m.Contains("llava", StringComparison.OrdinalIgnoreCase) || 
+                                                         m.Contains("vision", StringComparison.OrdinalIgnoreCase) ||
+                                                         m.Contains("moondream", StringComparison.OrdinalIgnoreCase));
+                OllamaModelComboBox.SelectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
+                OllamaStatusText.Text = $"Ollama 接続完了 ({models.Count} 個のモデル検出)";
+            }
+            else
+            {
+                OllamaStatusText.Text = "Ollama は動作中ですが、インストール済みモデルが見つかりません。";
+            }
+        }
+        else
+        {
+            OllamaStatusText.Text = "Ollama (http://localhost:11434) に接続できませんでした。Ollamaが起動しているか確認してください。";
+            OllamaRadio.IsEnabled = false;
+        }
+    }
+
+    private void EngineRadio_Checked(object sender, RoutedEventArgs e)
+    {
+        if (OllamaSettingsPanel != null && OllamaRadio != null)
+        {
+            OllamaSettingsPanel.Visibility = OllamaRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        }
+        UpdateEngineStatusText();
+    }
+
+    private void UpdateEngineStatusText()
+    {
+        if (DeviceStatusText == null || _classifierService == null) return;
+
+        if (OllamaRadio != null && OllamaRadio.IsChecked == true)
+        {
+            string selectedModel = OllamaModelComboBox?.SelectedItem as string ?? "LLM Vision";
+            DeviceStatusText.Text = $"判定エンジン: Ollama ローカルAI ({selectedModel})";
+        }
+        else
+        {
+            DeviceStatusText.Text = _classifierService.IsModelLoaded
+                ? (_classifierService.IsDirectMLActive ? "判定エンジン: ONNX DirectML (GPU加速)" : "判定エンジン: ONNX CPU モード")
+                : "判定エンジン: ルールベース AI (特徴・色調解析)";
+        }
     }
 
     private async void ClassifyDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -37,12 +98,21 @@ public sealed partial class ClassifyDialog : ContentDialog
         {
             args.Cancel = true; // Prevent dialog from closing immediately
 
+            RuleBasedRadio.IsEnabled = false;
+            OllamaRadio.IsEnabled = false;
+            OllamaModelComboBox.IsEnabled = false;
             CopyRadio.IsEnabled = false;
             MoveRadio.IsEnabled = false;
             TagOnlyRadio.IsEnabled = false;
             IsPrimaryButtonEnabled = false;
 
-            ProgressArea.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            ProgressArea.Visibility = Visibility.Visible;
+
+            _classifierService.UseOllama = OllamaRadio.IsChecked == true;
+            if (OllamaModelComboBox.SelectedItem is string selectedModel)
+            {
+                _classifierService.OllamaModelName = selectedModel;
+            }
 
             ClassificationMode mode = ClassificationMode.CopyToCategoryFolder;
             if (MoveRadio.IsChecked == true) mode = ClassificationMode.MoveToCategoryFolder;
