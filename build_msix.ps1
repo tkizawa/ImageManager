@@ -20,8 +20,8 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# Copy generated MSIX packages to shallow AppPackages directory in project root
-$targetDir = Join-Path $PSScriptRoot "AppPackages"
+# Copy generated MSIX packages to shallow MSIX directory in project root
+$targetDir = Join-Path $PSScriptRoot "MSIX"
 if (-not (Test-Path $targetDir)) {
     New-Item -ItemType Directory -Path $targetDir | Out-Null
 }
