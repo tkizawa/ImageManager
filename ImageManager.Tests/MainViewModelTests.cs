@@ -148,5 +148,49 @@ namespace ImageManager.Tests
             Assert.Equal("new.jpg", vm.Images[0].FileName);
             Assert.Equal("old.jpg", vm.Images[1].FileName);
         }
+
+        [Fact]
+        public void DirectoryNodeViewModel_WithCustomDisplayName_UsesDisplayNameAsName()
+        {
+            // Arrange
+            string fullPath = @"C:\";
+            string displayName = "OS (C:)";
+
+            // Act
+            var node = new DirectoryNodeViewModel(fullPath, displayName);
+
+            // Assert
+            Assert.Equal(fullPath, node.FullPath);
+            Assert.Equal(displayName, node.Name);
+        }
+
+        [Fact]
+        public void DirectoryNodeViewModel_WithoutDisplayName_UsesFullPathForRootDrive()
+        {
+            // Arrange
+            string fullPath = @"C:\";
+
+            // Act
+            var node = new DirectoryNodeViewModel(fullPath);
+
+            // Assert
+            Assert.Equal(fullPath, node.FullPath);
+            Assert.Equal(fullPath, node.Name);
+        }
+
+        [Fact]
+        public void MainViewModel_LoadDrives_PopulatesFoldersWithFormattedNames()
+        {
+            // Arrange & Act
+            var vm = new MainViewModel(_mockFileSystemService.Object, _mockSettingsService.Object);
+
+            // Assert
+            Assert.NotEmpty(vm.Folders);
+            foreach (var driveNode in vm.Folders)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(driveNode.Name));
+                Assert.False(string.IsNullOrWhiteSpace(driveNode.FullPath));
+            }
+        }
     }
 }

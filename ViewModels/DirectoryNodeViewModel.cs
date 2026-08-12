@@ -32,13 +32,20 @@ namespace ImageManager.ViewModels
             }
         }
 
-        public DirectoryNodeViewModel(string fullPath)
+        public DirectoryNodeViewModel(string fullPath, string? displayName = null)
         {
             FullPath = fullPath;
-            Name = Path.GetFileName(fullPath);
-            if (string.IsNullOrEmpty(Name))
+            if (!string.IsNullOrEmpty(displayName))
             {
-                Name = fullPath; // for drives like C:\
+                Name = displayName;
+            }
+            else
+            {
+                Name = Path.GetFileName(fullPath);
+                if (string.IsNullOrEmpty(Name))
+                {
+                    Name = fullPath; // for drives like C:\
+                }
             }
 
             // Dummy child to show expansion toggle (+)

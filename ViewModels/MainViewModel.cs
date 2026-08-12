@@ -262,7 +262,10 @@ namespace ImageManager.ViewModels
             foreach (var part in parts)
             {
                 currentPath = string.IsNullOrEmpty(currentPath) ? part : System.IO.Path.Combine(currentPath, part);
-                var node = currentList.FirstOrDefault(n => n.Name.Equals(part, System.StringComparison.OrdinalIgnoreCase) || n.FullPath.Equals(currentPath, System.StringComparison.OrdinalIgnoreCase));
+                var node = currentList.FirstOrDefault(n => 
+                    n.Name.Equals(part, System.StringComparison.OrdinalIgnoreCase) || 
+                    n.FullPath.Equals(currentPath, System.StringComparison.OrdinalIgnoreCase) ||
+                    n.FullPath.TrimEnd('\\').Equals(currentPath.TrimEnd('\\'), System.StringComparison.OrdinalIgnoreCase));
                 if (node == null) break;
 
                 targetNode = node;
@@ -292,7 +295,19 @@ namespace ImageManager.ViewModels
                 {
                     if (drive.IsReady)
                     {
-                        Folders.Add(new DirectoryNodeViewModel(drive.Name));
+                        string volumeLabel = string.Empty;
+                        try
+                        {
+                            volumeLabel = drive.VolumeLabel;
+                        }
+                        catch { }
+
+                        string driveLetter = drive.Name.TrimEnd('\\');
+                        string displayName = !string.IsNullOrWhiteSpace(volumeLabel)
+                            ? $"{volumeLabel} ({driveLetter})"
+                            : drive.Name;
+
+                        Folders.Add(new DirectoryNodeViewModel(drive.Name, displayName));
                     }
                 }
             }
