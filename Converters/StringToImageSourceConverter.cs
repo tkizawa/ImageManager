@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
+using ImageManager.Services;
 
 namespace ImageManager.Converters
 {
@@ -12,7 +13,9 @@ namespace ImageManager.Converters
             {
                 try
                 {
-                    return new BitmapImage(new Uri(path));
+                    var bitmapImage = new BitmapImage();
+                    _ = RawThumbnailService.LoadBitmapImageAsync(bitmapImage, path);
+                    return bitmapImage;
                 }
                 catch { }
             }

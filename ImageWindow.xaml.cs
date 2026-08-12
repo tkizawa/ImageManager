@@ -67,7 +67,8 @@ public sealed partial class ImageWindow : Window
 
         try
         {
-            var bitmapImage = new BitmapImage(new Uri(imageFile.FilePath));
+            var bitmapImage = new BitmapImage();
+            _ = Services.RawThumbnailService.LoadBitmapImageAsync(bitmapImage, imageFile.FilePath);
             FullImage.Source = bitmapImage;
             
             // 画像切り替え時はズームと位置をデフォルト（ウィンドウに収まるサイズ）にリセット

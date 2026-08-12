@@ -69,9 +69,8 @@ namespace ImageManager.Services
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
                 return Enumerable.Empty<string>();
 
-            var extensions = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };
             return Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
-                            .Where(s => extensions.Contains(Path.GetExtension(s).ToLowerInvariant()));
+                            .Where(s => RawThumbnailService.IsSupportedImage(s));
         }
     }
 }
