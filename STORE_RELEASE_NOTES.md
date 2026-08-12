@@ -1,4 +1,4 @@
-# Microsoft Store リリースノート (What's New) - v1.0.8.0
+# Microsoft Store リリースノート (What's New) - v1.0.9.0
 
 Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新内容 (What's new)」へコピー＆ペーストしてご利用ください。
 
@@ -7,15 +7,14 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇯🇵 日本語 (ja-JP)
 
 ```text
-【バージョン 1.0.8.0 の更新内容】
+【バージョン 1.0.9.0 の更新内容】
 
-1. Ollama (ローカル Vision AI) 連携の追加
-   ・ローカル環境の Ollama (LLaVA / Visionモデル) を利用した、高精度な画像自動分類に対応しました。
-   ・Ollamaが起動していない環境では、高速ローカルルールベース判定へ自動的に安全にフォールバックします。
+1. ドライブ一覧の表示名改善
+   ・フォルダツリーのドライブ一覧にて、ドライブ文字だけでなく「ボリュームラベル（ドライブ文字）」の表示（例: ローカル ディスク (C:)）に対応し、ドライブの識別性を向上させました。
 
-2. AI自動分類機能の精度向上・不具合修正
-   ・色調・特徴解析の精度を向上させ、カテゴリ判定を最適化しました。
-   ・ダイアログ初期化時の動作安定性を向上させました。
+2. RAW画像の埋め込みJPEGサムネイル抽出・表示対応
+   ・一眼レフやミラーレスカメラのRAWファイル (.CR2, .CR3, .NEF, .ARW, .DNG 等) 内に埋め込まれているJPEGサムネイルを高速抽出して表示する機能に対応しました。
+   ・サムネイル一覧および大画面プレビュー表示にて、RAW画像も瞬時にプレビューできます。
 ```
 
 ---
@@ -23,13 +22,12 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇺🇸 英語 (en-US)
 
 ```text
-[What's New in Version 1.0.8.0]
+[What's New in Version 1.0.9.0]
 
-1. Ollama (Local Vision AI) Integration
-   - Added support for highly accurate image auto-classification using local Ollama (LLaVA / Vision models).
-   - Automatically and safely falls back to the fast local rule-based engine when Ollama is not running.
+1. Improved Drive List Display Names
+   - Added support for displaying volume labels alongside drive letters (e.g., "Local Disk (C:)") in the folder tree for easier drive identification.
 
-2. AI Auto-Classification Improvements & Bug Fixes
-   - Enhanced color and feature analysis algorithms for more accurate categorization.
-   - Improved dialog initialization stability and crash prevention.
+2. RAW Image Embedded JPEG Thumbnail Extraction & Preview
+   - Added fast extraction and rendering of embedded JPEG thumbnails from camera RAW files (.CR2, .CR3, .NEF, .ARW, .DNG, etc.).
+   - Instant thumbnail and full-size previews for RAW images without long decoding delays.
 ```
