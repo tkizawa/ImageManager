@@ -287,6 +287,38 @@ namespace ImageManager.ViewModels
             }
         }
 
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private struct SHFILEINFO
+        {
+            public IntPtr hIcon;
+            public int iIcon;
+            public uint dwAttributes;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string szDisplayName;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 80)]
+            public string szTypeName;
+        }
+
+        private const uint SHGFI_DISPLAYNAME = 0x000000200;
+
+        [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbFileInfo, uint uFlags);
+
+        private static string GetShellDisplayName(string path)
+        {
+            try
+            {
+                var shfi = new SHFILEINFO();
+                IntPtr result = SHGetFileInfo(path, 0, ref shfi, (uint)System.Runtime.InteropServices.Marshal.SizeOf(shfi), SHGFI_DISPLAYNAME);
+                if (result != IntPtr.Zero && !string.IsNullOrWhiteSpace(shfi.szDisplayName))
+                {
+                    return shfi.szDisplayName;
+                }
+            }
+            catch { }
+            return string.Empty;
+        }
+
         private void LoadDrives()
         {
             try
@@ -303,9 +335,32 @@ namespace ImageManager.ViewModels
                         catch { }
 
                         string driveLetter = drive.Name.TrimEnd('\\');
-                        string displayName = !string.IsNullOrWhiteSpace(volumeLabel)
-                            ? $"{volumeLabel} ({driveLetter})"
-                            : drive.Name;
+                        string displayName;
+
+                        if (!string.IsNullOrWhiteSpace(volumeLabel))
+                        {
+                            displayName = $"{volumeLabel} ({driveLetter})";
+                        }
+                        else
+                        {
+                            string shellDisplayName = GetShellDisplayName(drive.Name);
+                            if (!string.IsNullOrWhiteSpace(shellDisplayName))
+                            {
+                                displayName = shellDisplayName;
+                            }
+                            else
+                            {
+                                string defaultLabel = drive.DriveType switch
+                                {
+                                    DriveType.Fixed => "ローカル ディスク",
+                                    DriveType.Removable => "USB ドライブ",
+                                    DriveType.CDRom => "CD ドライブ",
+                                    DriveType.Network => "ネットワーク ドライブ",
+                                    _ => "ローカル ディスク"
+                                };
+                                displayName = $"{defaultLabel} ({driveLetter})";
+                            }
+                        }
 
                         Folders.Add(new DirectoryNodeViewModel(drive.Name, displayName));
                     }
