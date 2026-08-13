@@ -17,8 +17,8 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
    ・大画面ビューアーの左上にファイル名、撮影日、EXIF情報（カメラ、レンズ、F値、SS、ISO等）のオーバーレイを表示しました。
    ・右クリックメニューから情報の表示・非表示を切り替え可能にし、切り替え状態を保存できるようにしました。
 
-3. ドライブ一覧の表示名改善
-   ・フォルダツリーのドライブ一覧にて「ローカル ディスク (C:)」等のボリュームラベル表示に対応しました。
+3. C:ドライブ等のボリュームラベル表示名の修正・改善
+   ・Windows標準のC:ドライブなど、ボリュームラベルが明示的に設定されていないドライブにおいて、Windows Shell API (SHGetFileInfo) 連携を導入し、エクスプローラーと同等の「ローカル ディスク (C:)」等の正確な「ボリュームラベル（ドライブ文字）」表示名を取得・表示するように改善しました。
 ```
 
 ---
@@ -36,6 +36,6 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
    - Added a top-left overlay panel in the image viewer displaying photo details (filename, date taken, camera, lens, exposure specs, and file size).
    - Added context menu right-click toggle for overlay visibility with persistent settings.
 
-3. Improved Drive List Display Names
-   - Added volume labels alongside drive letters (e.g., "Local Disk (C:)") in the folder tree.
+3. Fixed Drive List Label Display (e.g., C: Drive)
+   - Integrated Windows Shell API (SHGetFileInfo) to resolve missing volume labels for unlabeled drives (like default C: drive), accurately displaying Windows Explorer names such as "Local Disk (C:)".
 ```
