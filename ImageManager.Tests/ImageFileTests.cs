@@ -79,5 +79,31 @@ namespace ImageManager.Tests
             Assert.True(categoryChanged);
             Assert.Equal("Landscape", imageFile.Category);
         }
+
+        [Fact]
+        public void FormattedExposureSpecs_FormatsParametersCorrectly()
+        {
+            // Arrange
+            var imageFile = new ImageFile(_tempFilePath)
+            {
+                FNumber = "2.8",
+                ExposureTime = "1/1000",
+                IsoSpeed = "100",
+                FocalLength = "50 mm"
+            };
+
+            // Act & Assert
+            Assert.Equal("f/2.8  |  1/1000s  |  ISO 100  |  50 mm", imageFile.FormattedExposureSpecs);
+        }
+
+        [Fact]
+        public void FormattedFileSize_FormatsBytesCorrectly()
+        {
+            // Arrange
+            var imageFile = new ImageFile(_tempFilePath);
+
+            // Act & Assert
+            Assert.Equal("4 B", imageFile.FormattedFileSize);
+        }
     }
 }

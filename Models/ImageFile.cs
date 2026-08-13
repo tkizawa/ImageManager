@@ -76,31 +76,37 @@ namespace ImageManager.Models
 
             string dateTaken = string.Empty, cameraModel = string.Empty, lens = string.Empty, exposureTime = string.Empty, fNumber = string.Empty, isoSpeed = string.Empty, focalLength = string.Empty;
 
-            await Task.Run(() =>
+            try
             {
-                try
+                await Task.Run(() =>
                 {
-                    var directories = MetadataExtractor.ImageMetadataReader.ReadMetadata(FilePath);
-                    var exifIfd0 = directories.OfType<MetadataExtractor.Formats.Exif.ExifIfd0Directory>().FirstOrDefault();
-                    var exifSubIfd = directories.OfType<MetadataExtractor.Formats.Exif.ExifSubIfdDirectory>().FirstOrDefault();
-
-                    if (exifIfd0 != null)
+                    try
                     {
-                        cameraModel = exifIfd0.GetDescription(MetadataExtractor.Formats.Exif.ExifIfd0Directory.TagModel) ?? string.Empty;
-                    }
+                        if (!File.Exists(FilePath)) return;
 
-                    if (exifSubIfd != null)
-                    {
-                        dateTaken = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagDateTimeOriginal) ?? string.Empty;
-                        lens = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagLensModel) ?? string.Empty;
-                        exposureTime = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagExposureTime) ?? string.Empty;
-                        fNumber = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagFNumber) ?? string.Empty;
-                        isoSpeed = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagIsoEquivalent) ?? string.Empty;
-                        focalLength = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagFocalLength) ?? string.Empty;
+                        var directories = MetadataExtractor.ImageMetadataReader.ReadMetadata(FilePath);
+                        var exifIfd0 = directories.OfType<MetadataExtractor.Formats.Exif.ExifIfd0Directory>().FirstOrDefault();
+                        var exifSubIfd = directories.OfType<MetadataExtractor.Formats.Exif.ExifSubIfdDirectory>().FirstOrDefault();
+
+                        if (exifIfd0 != null)
+                        {
+                            cameraModel = exifIfd0.GetDescription(MetadataExtractor.Formats.Exif.ExifIfd0Directory.TagModel) ?? string.Empty;
+                        }
+
+                        if (exifSubIfd != null)
+                        {
+                            dateTaken = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagDateTimeOriginal) ?? string.Empty;
+                            lens = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagLensModel) ?? string.Empty;
+                            exposureTime = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagExposureTime) ?? string.Empty;
+                            fNumber = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagFNumber) ?? string.Empty;
+                            isoSpeed = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagIsoEquivalent) ?? string.Empty;
+                            focalLength = exifSubIfd.GetDescription(MetadataExtractor.Formats.Exif.ExifSubIfdDirectory.TagFocalLength) ?? string.Empty;
+                        }
                     }
-                }
-                catch { }
-            });
+                    catch { }
+                });
+            }
+            catch { }
 
             DateTaken = dateTaken;
             CameraModel = cameraModel;
@@ -109,6 +115,58 @@ namespace ImageManager.Models
             FNumber = fNumber;
             IsoSpeed = isoSpeed;
             FocalLength = focalLength;
+
+            OnPropertyChanged(nameof(FormattedDateTaken));
+            OnPropertyChanged(nameof(FormattedExposureSpecs));
+            OnPropertyChanged(nameof(FormattedFileSize));
+        }
+
+        public string FormattedDateTaken
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(DateTaken))
+                    return DateTaken;
+                return LastWriteTime != default ? LastWriteTime.ToString("yyyy/MM/dd HH:mm:ss") : string.Empty;
+            }
+        }
+
+        public string FormattedExposureSpecs
+        {
+            get
+            {
+                var parts = new System.Collections.Generic.List<string>();
+                if (!string.IsNullOrWhiteSpace(FNumber))
+                {
+                    var f = FNumber.StartsWith("f/", StringComparison.OrdinalIgnoreCase) ? FNumber : $"f/{FNumber}";
+                    parts.Add(f);
+                }
+                if (!string.IsNullOrWhiteSpace(ExposureTime))
+                {
+                    var exp = ExposureTime.EndsWith("s", StringComparison.OrdinalIgnoreCase) || ExposureTime.EndsWith("sec", StringComparison.OrdinalIgnoreCase) ? ExposureTime : $"{ExposureTime}s";
+                    parts.Add(exp);
+                }
+                if (!string.IsNullOrWhiteSpace(IsoSpeed))
+                {
+                    var iso = IsoSpeed.StartsWith("ISO", StringComparison.OrdinalIgnoreCase) ? IsoSpeed : $"ISO {IsoSpeed}";
+                    parts.Add(iso);
+                }
+                if (!string.IsNullOrWhiteSpace(FocalLength))
+                {
+                    parts.Add(FocalLength);
+                }
+                return string.Join("  |  ", parts);
+            }
+        }
+
+        public string FormattedFileSize
+        {
+            get
+            {
+                if (FileSize < 1024) return $"{FileSize} B";
+                if (FileSize < 1024 * 1024) return $"{FileSize / 1024.0:F1} KB";
+                return $"{FileSize / (1024.0 * 1024.0):F2} MB";
+            }
         }
     }
 }

@@ -55,7 +55,8 @@ namespace ImageManager.Tests
             {
                 LastOpenedFolder = @"C:\TestFolder",
                 FavoriteFolders = new() { @"C:\TestFolder\Fav1", @"C:\TestFolder\Fav2" },
-                HistoryFolders = new() { @"C:\TestFolder\Hist1" }
+                HistoryFolders = new() { @"C:\TestFolder\Hist1" },
+                ShowImageWindowInfo = false
             };
 
             // Act
@@ -68,6 +69,7 @@ namespace ImageManager.Tests
             Assert.Equal(2, loadedSettings.FavoriteFolders.Count);
             Assert.Contains(@"C:\TestFolder\Fav1", loadedSettings.FavoriteFolders);
             Assert.Single(loadedSettings.HistoryFolders);
+            Assert.False(loadedSettings.ShowImageWindowInfo);
         }
 
         [Fact]

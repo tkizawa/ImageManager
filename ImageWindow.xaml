@@ -7,11 +7,21 @@
     xmlns:local="using:ImageManager"
     mc:Ignorable="d">
 
-    <Grid Background="#1E1E1E">
+    <Grid x:Name="RootGrid" Background="#1E1E1E">
+        <Grid.ContextFlyout>
+            <MenuFlyout>
+                <ToggleMenuFlyoutItem x:Name="ToggleInfoMenuItem" 
+                                      Text="写真情報を表示" 
+                                      IsChecked="True"
+                                      Click="ToggleInfoMenuItem_Click" />
+            </MenuFlyout>
+        </Grid.ContextFlyout>
+
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Right" Invoked="NextImage_Invoked" />
             <KeyboardAccelerator Key="Left" Invoked="PreviousImage_Invoked" />
             <KeyboardAccelerator Key="Escape" Invoked="CloseWindow_Invoked" />
+            <KeyboardAccelerator Key="I" Invoked="ToggleInfoOverlay_Invoked" />
         </Grid.KeyboardAccelerators>
         
         <Image x:Name="FullImage" 
@@ -28,5 +38,84 @@
                 <CompositeTransform x:Name="ImageTransform" />
             </Image.RenderTransform>
         </Image>
+
+        <!-- Top-Left Information Overlay -->
+        <Border x:Name="InfoOverlayBorder"
+                Visibility="Visible"
+                HorizontalAlignment="Left" 
+                VerticalAlignment="Top" 
+                Margin="20"
+                Padding="16,12"
+                CornerRadius="8"
+                Background="#D0181818"
+                BorderBrush="#40FFFFFF"
+                BorderThickness="1"
+                MaxWidth="500"
+                IsHitTestVisible="False">
+            <StackPanel Spacing="6">
+                <!-- Header / File Name -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Text="📄" Margin="0,0,8,0" FontSize="13" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" 
+                               Text="{Binding SelectedImage.FileName}" 
+                               FontWeight="Bold" 
+                               FontSize="14" 
+                               Foreground="White" 
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
+
+                <!-- Date Taken -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Text="📅 撮影日:" Margin="0,0,8,0" FontSize="12" Foreground="#B0B0B0" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" 
+                               Text="{Binding SelectedImage.FormattedDateTaken}" 
+                               FontSize="12" 
+                               Foreground="#E0E0E0" 
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
+
+                <!-- EXIF Information -->
+                <StackPanel Spacing="4" Margin="0,2,0,0">
+                    <!-- Camera Model -->
+                    <Grid ColumnDefinitions="Auto,*" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}">
+                        <TextBlock Text="📷 カメラ:" Margin="0,0,8,0" FontSize="12" Foreground="#B0B0B0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" 
+                                   Text="{Binding SelectedImage.CameraModel}" 
+                                   FontSize="12" 
+                                   Foreground="#E0E0E0" 
+                                   TextTrimming="CharacterEllipsis" />
+                    </Grid>
+
+                    <!-- Lens Model -->
+                    <Grid ColumnDefinitions="Auto,*" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}">
+                        <TextBlock Text="🔍 レンズ:" Margin="0,0,8,0" FontSize="12" Foreground="#B0B0B0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" 
+                                   Text="{Binding SelectedImage.Lens}" 
+                                   FontSize="12" 
+                                   Foreground="#E0E0E0" 
+                                   TextTrimming="CharacterEllipsis" />
+                    </Grid>
+
+                    <!-- Exposure Parameters -->
+                    <Grid ColumnDefinitions="Auto,*" Visibility="{Binding SelectedImage.FormattedExposureSpecs, Converter={StaticResource StringToVisibilityConverter}}">
+                        <TextBlock Text="⚙️ 設定:" Margin="0,0,8,0" FontSize="12" Foreground="#B0B0B0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" 
+                                   Text="{Binding SelectedImage.FormattedExposureSpecs}" 
+                                   FontSize="12" 
+                                   Foreground="#E0E0E0" 
+                                   TextTrimming="CharacterEllipsis" />
+                    </Grid>
+
+                    <!-- File Size -->
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Text="💾 サイズ:" Margin="0,0,8,0" FontSize="12" Foreground="#B0B0B0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" 
+                                   Text="{Binding SelectedImage.FormattedFileSize}" 
+                                   FontSize="12" 
+                                   Foreground="#B0B0B0" />
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

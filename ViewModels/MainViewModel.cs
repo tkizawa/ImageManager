@@ -101,6 +101,31 @@ namespace ImageManager.ViewModels
             }
         }
 
+        private static async Task LoadExifForListAsync(IEnumerable<ImageFile> items)
+        {
+            var unloaded = items.Where(i => !i.IsExifLoaded).ToList();
+            if (unloaded.Count == 0) return;
+
+            using var semaphore = new System.Threading.SemaphoreSlim(4);
+            foreach (var chunk in unloaded.Chunk(50))
+            {
+                var tasks = chunk.Select(async item =>
+                {
+                    await semaphore.WaitAsync();
+                    try
+                    {
+                        await item.LoadExifAsync();
+                    }
+                    catch { }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+                await Task.WhenAll(tasks);
+            }
+        }
+
         private async Task SortImagesAsync()
         {
             if (Images.Count == 0 || _isSorting) return;
@@ -108,16 +133,10 @@ namespace ImageManager.ViewModels
 
             try
             {
-                var sorted = await Task.Run(async () => 
-                {
-                    var list = Images.ToList();
-                    
-                    if (SortFieldIndex == 1) // DateTaken
-                    {
-                        var tasks = list.Where(i => !i.IsExifLoaded).Select(i => i.LoadExifAsync());
-                        await Task.WhenAll(tasks);
-                    }
+                var list = Images.ToList();
 
+                var sorted = await Task.Run(() =>
+                {
                     if (SortFieldIndex == 0) // LastWriteTime
                     {
                         if (SortDirectionIndex == 0) // Ascending
@@ -128,22 +147,50 @@ namespace ImageManager.ViewModels
                     else // DateTaken
                     {
                         if (SortDirectionIndex == 0)
-                            return list.OrderBy(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                            return list.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                         else
-                            return list.OrderByDescending(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                            return list.OrderByDescending(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                     }
                 });
 
-                RunOnUIThread(() => 
+                RunOnUIThread(() =>
                 {
                     var selected = SelectedImage;
-                    Images.Clear();
-                    foreach (var img in sorted)
+                    
+                    // Assign new collection at once to prevent thousands of UI layout Move events
+                    Images = new ObservableCollection<ImageFile>(sorted);
+
+                    if (selected != null && Images.Contains(selected))
                     {
-                        Images.Add(img);
+                        SelectedImage = selected;
                     }
-                    SelectedImage = selected;
                 });
+
+                // Load EXIF asynchronously in background if DateTaken sorting selected
+                if (SortFieldIndex == 1)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        await LoadExifForListAsync(list);
+
+                        var reSorted = list.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                        if (SortDirectionIndex != 0) reSorted.Reverse();
+
+                        if (!list.SequenceEqual(reSorted))
+                        {
+                            RunOnUIThread(() =>
+                            {
+                                var sel = SelectedImage;
+                                Images = new ObservableCollection<ImageFile>(reSorted);
+                                if (sel != null && Images.Contains(sel)) SelectedImage = sel;
+                            });
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error during SortImagesAsync: {ex}");
             }
             finally
             {
@@ -404,21 +451,17 @@ namespace ImageManager.ViewModels
 
         private async Task LoadImagesAsync(string folderPath)
         {
-            Images.Clear();
-            SelectedImage = null;
+            RunOnUIThread(() =>
+            {
+                Images.Clear();
+                SelectedImage = null;
+            });
             
-            // In a real app, this should run on a background thread to avoid freezing UI
             await Task.Run(async () => 
             {
                 var files = _fileSystemService.GetImageFiles(folderPath).ToList();
                 var newImages = files.Select(f => new ImageFile(f)).ToList();
                 
-                if (SortFieldIndex == 1) // DateTaken
-                {
-                    var tasks = newImages.Where(i => !i.IsExifLoaded).Select(i => i.LoadExifAsync());
-                    await Task.WhenAll(tasks);
-                }
-
                 if (SortFieldIndex == 0) // LastWriteTime
                 {
                     if (SortDirectionIndex == 0) // Ascending
@@ -429,17 +472,14 @@ namespace ImageManager.ViewModels
                 else // DateTaken
                 {
                     if (SortDirectionIndex == 0)
-                        newImages = newImages.OrderBy(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                        newImages = newImages.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                     else
-                        newImages = newImages.OrderByDescending(i => string.IsNullOrEmpty(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                        newImages = newImages.OrderByDescending(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                 }
                 
                 RunOnUIThread(() => 
                 {
-                    foreach (var img in newImages)
-                    {
-                        Images.Add(img);
-                    }
+                    Images = new ObservableCollection<ImageFile>(newImages);
 
                     var settings = _settingsService.Load();
                     if (!string.IsNullOrEmpty(settings.SelectedImageFilePath))
@@ -459,6 +499,24 @@ namespace ImageManager.ViewModels
                         SelectedImage = Images[0];
                     }
                 });
+
+                if (SortFieldIndex == 1) // DateTaken background loading
+                {
+                    await LoadExifForListAsync(newImages);
+
+                    var reSorted = newImages.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                    if (SortDirectionIndex != 0) reSorted.Reverse();
+
+                    if (!newImages.SequenceEqual(reSorted))
+                    {
+                        RunOnUIThread(() =>
+                        {
+                            var sel = SelectedImage;
+                            Images = new ObservableCollection<ImageFile>(reSorted);
+                            if (sel != null && Images.Contains(sel)) SelectedImage = sel;
+                        });
+                    }
+                }
             });
         }
 

@@ -21,6 +21,7 @@ public sealed partial class ImageWindow : Window
         this.InitializeComponent();
         _settingsService = settingsService;
         _viewModel = viewModel;
+        RootGrid.DataContext = _viewModel;
 
         IntPtr hWnd = WindowNative.GetWindowHandle(this);
         WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
@@ -48,6 +49,10 @@ public sealed partial class ImageWindow : Window
             _appWindow.Move(new Windows.Graphics.PointInt32((int)settings.ImageWindowLeft, (int)settings.ImageWindowTop));
         }
 
+        bool showInfo = settings.ShowImageWindowInfo;
+        InfoOverlayBorder.Visibility = showInfo ? Visibility.Visible : Visibility.Collapsed;
+        ToggleInfoMenuItem.IsChecked = showInfo;
+
         this.Closed += ImageWindow_Closed;
     }
 
@@ -68,9 +73,11 @@ public sealed partial class ImageWindow : Window
         try
         {
             var bitmapImage = new BitmapImage();
-            _ = Services.RawThumbnailService.LoadBitmapImageAsync(bitmapImage, imageFile.FilePath);
+            _ = Services.RawThumbnailService.LoadBitmapImageAsync(bitmapImage, imageFile.FilePath, 0);
             FullImage.Source = bitmapImage;
             
+            _ = imageFile.LoadExifAsync();
+
             // 画像切り替え時はズームと位置をデフォルト（ウィンドウに収まるサイズ）にリセット
             ImageTransform.ScaleX = 1.0;
             ImageTransform.ScaleY = 1.0;
@@ -81,6 +88,30 @@ public sealed partial class ImageWindow : Window
         {
             // 画像ロードエラー時の処理
         }
+    }
+
+    private void ToggleInfoOverlay_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        ToggleInfoDisplay();
+    }
+
+    private void ToggleInfoMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleInfoDisplay();
+    }
+
+    private void ToggleInfoDisplay()
+    {
+        bool isCurrentlyVisible = InfoOverlayBorder.Visibility == Visibility.Visible;
+        bool newVisible = !isCurrentlyVisible;
+
+        InfoOverlayBorder.Visibility = newVisible ? Visibility.Visible : Visibility.Collapsed;
+        ToggleInfoMenuItem.IsChecked = newVisible;
+
+        var settings = _settingsService.Load();
+        settings.ShowImageWindowInfo = newVisible;
+        _settingsService.Save(settings);
     }
 
     private void NextImage_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)

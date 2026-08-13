@@ -16,6 +16,7 @@ namespace ImageManager.Models
         public double ImageWindowHeight { get; set; } = 768;
         public double ImageWindowLeft { get; set; } = double.NaN;
         public double ImageWindowTop { get; set; } = double.NaN;
+        public bool ShowImageWindowInfo { get; set; } = true;
 
         public System.Collections.Generic.List<string> FavoriteFolders { get; set; } = new();
         public System.Collections.Generic.List<string> HistoryFolders { get; set; } = new();

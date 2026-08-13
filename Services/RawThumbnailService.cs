@@ -59,54 +59,60 @@ namespace ImageManager.Services
 
             byte[]? jpegBytes = null;
 
-            // Tier 1: Windows WIC API (StorageFile thumbnail / BitmapDecoder preview)
-            try
-            {
-                var storageFile = await StorageFile.GetFileFromPathAsync(filePath);
-                using var stream = await storageFile.OpenReadAsync();
-                var decoder = await BitmapDecoder.CreateAsync(stream);
+            bool isRaw = IsRawFile(filePath);
 
-                using var previewStream = await decoder.GetPreviewAsync();
-                if (previewStream != null && previewStream.Size > 0)
-                {
-                    using var reader = new DataReader(previewStream);
-                    await reader.LoadAsync((uint)previewStream.Size);
-                    jpegBytes = new byte[previewStream.Size];
-                    reader.ReadBytes(jpegBytes);
-                }
-            }
-            catch { }
-
-            // Tier 1b: StorageFile.GetThumbnailAsync
-            if (jpegBytes == null || jpegBytes.Length == 0)
-            {
-                try
-                {
-                    var storageFile = await StorageFile.GetFileFromPathAsync(filePath);
-                    using var thumbnail = await storageFile.GetThumbnailAsync(
-                        Windows.Storage.FileProperties.ThumbnailMode.PicturesView,
-                        1024,
-                        Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
-
-                    if (thumbnail != null && thumbnail.Type == Windows.Storage.FileProperties.ThumbnailType.Image)
-                    {
-                        using var reader = new DataReader(thumbnail.GetInputStreamAt(0));
-                        await reader.LoadAsync((uint)thumbnail.Size);
-                        jpegBytes = new byte[thumbnail.Size];
-                        reader.ReadBytes(jpegBytes);
-                    }
-                }
-                catch { }
-            }
-
-            // Tier 2: Direct Binary JPEG SOI/EOI Extractor for RAW files
-            if ((jpegBytes == null || jpegBytes.Length == 0) && IsRawFile(filePath))
+            // For RAW files (.cr3, .cr2, .nef, etc.), use fast binary extraction first.
+            // NEVER pass RAW files to WIC BitmapDecoder / StorageFile API, as Windows WIC triggers
+            // native OS error dialogs ("ファイルを開く際にエラーが発生しました...") when RAW codecs are missing.
+            if (isRaw)
             {
                 try
                 {
                     jpegBytes = await Task.Run(() => ExtractEmbeddedJpegByBinaryScan(filePath));
                 }
                 catch { }
+            }
+            else
+            {
+                // Tier 1: Windows WIC API for standard images (JPG, PNG, BMP, etc.)
+                try
+                {
+                    var storageFile = await StorageFile.GetFileFromPathAsync(filePath);
+                    using var stream = await storageFile.OpenReadAsync();
+                    var decoder = await BitmapDecoder.CreateAsync(stream);
+
+                    using var previewStream = await decoder.GetPreviewAsync();
+                    if (previewStream != null && previewStream.Size > 0)
+                    {
+                        using var reader = new DataReader(previewStream);
+                        await reader.LoadAsync((uint)previewStream.Size);
+                        jpegBytes = new byte[previewStream.Size];
+                        reader.ReadBytes(jpegBytes);
+                    }
+                }
+                catch { }
+
+                // Tier 1b: StorageFile.GetThumbnailAsync
+                if (jpegBytes == null || jpegBytes.Length == 0)
+                {
+                    try
+                    {
+                        var storageFile = await StorageFile.GetFileFromPathAsync(filePath);
+                        using var thumbnail = await storageFile.GetThumbnailAsync(
+                            Windows.Storage.FileProperties.ThumbnailMode.PicturesView,
+                            1024,
+                            Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
+
+                        if (thumbnail != null && thumbnail.Type == Windows.Storage.FileProperties.ThumbnailType.Image)
+                        {
+                            using var reader = new DataReader(thumbnail.GetInputStreamAt(0));
+                            await reader.LoadAsync((uint)thumbnail.Size);
+                            jpegBytes = new byte[thumbnail.Size];
+                            reader.ReadBytes(jpegBytes);
+                        }
+                    }
+                    catch { }
+                }
             }
 
             if (jpegBytes != null && jpegBytes.Length > 0)
@@ -121,49 +127,57 @@ namespace ImageManager.Services
         {
             if (!File.Exists(filePath)) return null;
 
-            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            long fileLength = fs.Length;
-            if (fileLength < 100) return null;
-
-            // Read header & scan for embedded JPEG SOI (0xFF, 0xD8, 0xFF)
-            byte[] buffer = new byte[Math.Min(fileLength, 16 * 1024 * 1024)]; // Read up to 16MB preview area
-            int bytesRead = fs.Read(buffer, 0, buffer.Length);
-
-            List<(int start, int end)> candidateJpegs = new();
-
-            for (int i = 0; i < bytesRead - 4; i++)
+            try
             {
-                // Check SOI marker 0xFF 0xD8 0xFF
-                if (buffer[i] == 0xFF && buffer[i + 1] == 0xD8 && buffer[i + 2] == 0xFF)
-                {
-                    int soiIndex = i;
-                    int eoiIndex = -1;
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                long fileLength = fs.Length;
+                if (fileLength < 100) return null;
 
-                    // Scan for EOI marker 0xFF 0xD9
-                    for (int j = soiIndex + 100; j < bytesRead - 1; j++)
+                int bufferSize = (int)Math.Min(fileLength, 4 * 1024 * 1024);
+                byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(bufferSize);
+
+                try
+                {
+                    int bytesRead = fs.Read(buffer, 0, bufferSize);
+                    List<(int start, int end)> candidateJpegs = new();
+
+                    for (int i = 0; i < bytesRead - 4; i++)
                     {
-                        if (buffer[j] == 0xFF && buffer[j + 1] == 0xD9)
+                        if (buffer[i] == 0xFF && buffer[i + 1] == 0xD8 && buffer[i + 2] == 0xFF)
                         {
-                            eoiIndex = j + 2;
+                            int soiIndex = i;
+                            int eoiIndex = -1;
+
+                            for (int j = soiIndex + 100; j < bytesRead - 1; j++)
+                            {
+                                if (buffer[j] == 0xFF && buffer[j + 1] == 0xD9)
+                                {
+                                    eoiIndex = j + 2;
+                                }
+                            }
+
+                            if (eoiIndex > soiIndex + 1000)
+                            {
+                                candidateJpegs.Add((soiIndex, eoiIndex));
+                            }
                         }
                     }
 
-                    if (eoiIndex > soiIndex + 1000) // Minimum valid JPEG size
+                    if (candidateJpegs.Count > 0)
                     {
-                        candidateJpegs.Add((soiIndex, eoiIndex));
+                        var bestCandidate = candidateJpegs.OrderByDescending(c => c.end - c.start).First();
+                        int length = bestCandidate.end - bestCandidate.start;
+                        byte[] jpeg = new byte[length];
+                        System.Buffer.BlockCopy(buffer, bestCandidate.start, jpeg, 0, length);
+                        return jpeg;
                     }
                 }
+                finally
+                {
+                    System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
-
-            if (candidateJpegs.Count > 0)
-            {
-                // Pick largest embedded JPEG payload (usually full-res or large preview)
-                var bestCandidate = candidateJpegs.OrderByDescending(c => c.end - c.start).First();
-                int length = bestCandidate.end - bestCandidate.start;
-                byte[] jpeg = new byte[length];
-                System.Buffer.BlockCopy(buffer, bestCandidate.start, jpeg, 0, length);
-                return jpeg;
-            }
+            catch { }
 
             return null;
         }
@@ -182,9 +196,14 @@ namespace ImageManager.Services
             CacheKeys.Enqueue(filePath);
         }
 
-        public static async Task LoadBitmapImageAsync(BitmapImage bitmapImage, string filePath)
+        public static async Task LoadBitmapImageAsync(BitmapImage bitmapImage, string filePath, int decodeWidth = 300)
         {
             if (string.IsNullOrEmpty(filePath)) return;
+
+            if (decodeWidth > 0)
+            {
+                bitmapImage.DecodePixelWidth = decodeWidth;
+            }
 
             if (!IsRawFile(filePath))
             {
@@ -206,7 +225,7 @@ namespace ImageManager.Services
                 stream.Seek(0);
                 await bitmapImage.SetSourceAsync(stream);
             }
-            else
+            else if (!IsRawFile(filePath))
             {
                 try
                 {
