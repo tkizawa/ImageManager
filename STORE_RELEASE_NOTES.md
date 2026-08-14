@@ -18,6 +18,15 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 
 3. 画像ビュアーの操作性向上およびツールチップ表示の改善
    ・大画面画像ビュアー背景での不要なツールチップ表示を抑制し、「右クリックで画像情報の表示・非表示の切り替え」ガイドツールチップを表示するように改善しました。
+
+4. 写真の「お気に入り」機能の追加
+   ・サムネイル右上の星ボタン、右クリックメニュー「お気に入りの切り替え」、または拡大ビュアーでの「F」キーからワンクリックでお気に入り登録・解除ができるようになりました。
+   ・ツールバーの「お気に入りのみ」ボタンで、お気に入りに指定した写真のみを瞬時に抽出表示できます。
+
+5. 写真の「レート（★1～5）」およびレートフィルター機能の追加
+   ・写真に 5 段階の星レート（★1～★5）および「レートなし (0)」を設定・管理できるようになりました。右ペインの星ボタン、右クリックメニュー、キーボードの「0」～「5」キー（テンキー対応）から素早く設定できます。
+   ・ツールバーにレートフィルター用ドロップダウンを追加し、指定レートの写真のみを絞り込み表示できます。「お気に入りのみ」ボタンとの併用時には両方の条件を満たす写真のみを抽出（AND条件）可能です。
+   ・並び替えに「レート順（昇順・降順）」を追加しました。
 ```
 
 ---
@@ -36,4 +45,13 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 
 3. Image Viewer UX & Tooltip Enhancements
    - Suppressed auto-generated background tooltips and added helpful guidance tooltips for toggling photo information overlay.
+
+4. Photo Favorites Feature
+   - Easily bookmark or unbookmark photos via the top-right star icon on thumbnails, context menu, or by pressing 'F' in the image viewer.
+   - Use the 'Favorites Only' toolbar toggle to quickly view only your bookmarked photos.
+
+5. 5-Star Rating System & Rating Filter
+   - Rate photos with 1 to 5 stars (★1 to ★5) or clear ratings from the properties pane, context menu, or keyboard shortcuts ('0' to '5' keys / numpad).
+   - Filter photos by star rating from the toolbar dropdown, supporting seamless combination with Favorites (AND condition).
+   - Added 'Sort by Rating' (Ascending / Descending).
 ```
