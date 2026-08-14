@@ -54,6 +54,21 @@ namespace ImageManager.Models
         [ObservableProperty]
         private string _category = string.Empty;
 
+        [ObservableProperty]
+        private bool _isFavorite;
+
+        partial void OnIsFavoriteChanged(bool value)
+        {
+            if (!string.IsNullOrEmpty(FilePath))
+            {
+                try
+                {
+                    DatabaseService.Instance.UpdateImageFavorite(FilePath, value);
+                }
+                catch { }
+            }
+        }
+
         public bool IsExifLoaded { get; private set; }
 
         public ImageFile(string path)

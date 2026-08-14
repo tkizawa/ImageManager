@@ -14,9 +14,16 @@
         <Grid.ContextFlyout>
             <MenuFlyout>
                 <ToggleMenuFlyoutItem x:Name="ToggleInfoMenuItem" 
-                                      Text="写真情報を表示" 
-                                      IsChecked="True"
-                                      Click="ToggleInfoMenuItem_Click" />
+                                       Text="写真情報を表示" 
+                                       IsChecked="True"
+                                       Click="ToggleInfoMenuItem_Click" />
+                <MenuFlyoutItem x:Name="ToggleFavoriteMenuItem"
+                                Text="お気に入りの切り替え (F)"
+                                Click="ToggleFavoriteMenuItem_Click">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE735;"/>
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
             </MenuFlyout>
         </Grid.ContextFlyout>
 
@@ -25,6 +32,7 @@
             <KeyboardAccelerator Key="Left" Invoked="PreviousImage_Invoked" />
             <KeyboardAccelerator Key="Escape" Invoked="CloseWindow_Invoked" />
             <KeyboardAccelerator Key="I" Invoked="ToggleInfoOverlay_Invoked" />
+            <KeyboardAccelerator Key="F" Invoked="ToggleFavorite_Invoked" />
         </Grid.KeyboardAccelerators>
         
         <Image x:Name="FullImage" 
@@ -75,6 +83,15 @@
                                FontSize="12" 
                                Foreground="#E0E0E0" 
                                TextTrimming="CharacterEllipsis" />
+                </Grid>
+
+                <!-- Favorite Status -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Text="⭐ お気に入り:" Margin="0,0,8,0" FontSize="12" Foreground="#B0B0B0" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" 
+                               Text="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
+                               FontSize="14" 
+                               Foreground="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" />
                 </Grid>
 
                 <!-- EXIF Information -->

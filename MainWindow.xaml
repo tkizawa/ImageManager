@@ -252,10 +252,17 @@
                     <ComboBoxItem x:Uid="SortModifiedDate" />
                     <ComboBoxItem x:Uid="SortTakenDate" />
                 </ComboBox>
-                <ComboBox SelectedIndex="{Binding SortDirectionIndex, Mode=TwoWay}" Width="100">
+                <ComboBox SelectedIndex="{Binding SortDirectionIndex, Mode=TwoWay}" Width="100" Margin="0,0,15,0">
                     <ComboBoxItem x:Uid="SortAscending" />
                     <ComboBoxItem x:Uid="SortDescending" />
                 </ComboBox>
+
+                <ToggleButton IsChecked="{Binding ShowOnlyFavorites, Mode=TwoWay}" Padding="8,4">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="14"/>
+                        <TextBlock x:Uid="ShowOnlyFavoritesText" Text="お気に入りのみ" />
+                    </StackPanel>
+                </ToggleButton>
             </StackPanel>
 
             <!-- Thumbnail Grid -->
@@ -266,19 +273,51 @@
                       Padding="5">
                 <GridView.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Margin="5" Width="{Binding DataContext.ThumbnailPanelWidth, ElementName=RootGrid}">
-                            <StackPanel.ContextFlyout>
+                        <Grid Margin="5" Width="{Binding DataContext.ThumbnailPanelWidth, ElementName=RootGrid}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ContextFlyout>
                                 <MenuFlyout>
+                                    <MenuFlyoutItem x:Uid="ToggleFavoriteMenu" 
+                                                    Command="{Binding DataContext.ToggleFavoriteCommand, ElementName=RootGrid}" 
+                                                    CommandParameter="{Binding}">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="{Binding IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
+                                                      Foreground="{Binding IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
                                     <MenuFlyoutItem x:Uid="OpenWithPhotosMenu" Click="OpenWithPhotos_Click" Tag="{Binding}" />
                                     <MenuFlyoutItem x:Uid="ShowInExplorerMenu" Click="ShowInExplorer_Click" Tag="{Binding}" />
                                 </MenuFlyout>
-                            </StackPanel.ContextFlyout>
-                            <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" 
-                                   Width="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
-                                   Height="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
-                                   Stretch="Uniform" />
-                            <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding FileName}" TextAlignment="Center" Margin="0,5,0,0" />
-                        </StackPanel>
+                            </Grid.ContextFlyout>
+
+                            <Grid Grid.Row="0">
+                                <Image Source="{Binding FilePath, Converter={StaticResource StringToImageSourceConverter}}" 
+                                       Width="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
+                                       Height="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
+                                       Stretch="Uniform" />
+
+                                <Button Command="{Binding DataContext.ToggleFavoriteCommand, ElementName=RootGrid}" 
+                                        CommandParameter="{Binding}" 
+                                        HorizontalAlignment="Right" 
+                                        VerticalAlignment="Top" 
+                                        Margin="2" 
+                                        Padding="4" 
+                                        Background="#A0000000" 
+                                        BorderThickness="0"
+                                        CornerRadius="12" 
+                                        ToolTipService.ToolTip="お気に入りの切り替え">
+                                    <FontIcon Glyph="{Binding IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
+                                              Foreground="{Binding IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" 
+                                              FontSize="13" />
+                                </Button>
+                            </Grid>
+
+                            <TextBlock Grid.Row="1" Text="{Binding FileName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding FileName}" TextAlignment="Center" Margin="0,5,0,0" />
+                        </Grid>
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
@@ -292,7 +331,24 @@
             <ScrollViewer>
                 <StackPanel>
                     <TextBlock x:Uid="PreviewText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
-                    <Image Source="{Binding SelectedImage.FilePath, Converter={StaticResource StringToImageSourceConverter}}" MaxHeight="300" Stretch="Uniform" Margin="0,0,0,20" />
+                    <Grid Margin="0,0,0,20">
+                        <Image Source="{Binding SelectedImage.FilePath, Converter={StaticResource StringToImageSourceConverter}}" MaxHeight="300" Stretch="Uniform" />
+                        <Button Command="{Binding ToggleFavoriteCommand}" 
+                                CommandParameter="{Binding SelectedImage}" 
+                                HorizontalAlignment="Right" 
+                                VerticalAlignment="Top" 
+                                Margin="8" 
+                                Padding="6" 
+                                Background="#B0000000" 
+                                BorderThickness="0"
+                                CornerRadius="16" 
+                                Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}"
+                                ToolTipService.ToolTip="お気に入りの切り替え">
+                            <FontIcon Glyph="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
+                                      Foreground="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" 
+                                      FontSize="16" />
+                        </Button>
+                    </Grid>
                     
                     <TextBlock x:Uid="PropertiesText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
                     <Grid>
@@ -301,6 +357,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -347,6 +404,21 @@
 
                         <TextBlock Grid.Row="10" Grid.Column="0" Text="カテゴリー:" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.Category, Converter={StaticResource StringToVisibilityConverter}}" />
                         <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding SelectedImage.Category}" Margin="0,10,0,5" FontWeight="Bold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{Binding SelectedImage.Category, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                        <TextBlock Grid.Row="11" Grid.Column="0" x:Uid="FavoriteLabelText" Text="お気に入り:" FontWeight="SemiBold" Margin="0,10,10,5" VerticalAlignment="Center" Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <Button Grid.Row="11" Grid.Column="1" 
+                                Command="{Binding ToggleFavoriteCommand}" 
+                                CommandParameter="{Binding SelectedImage}" 
+                                Padding="6,4" Margin="0,10,0,5" 
+                                HorizontalAlignment="Left" 
+                                Background="Transparent" 
+                                BorderThickness="0"
+                                Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}"
+                                ToolTipService.ToolTip="お気に入りの切り替え">
+                            <FontIcon Glyph="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
+                                      Foreground="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" 
+                                      FontSize="18" />
+                        </Button>
                     </Grid>
                 </StackPanel>
             </ScrollViewer>

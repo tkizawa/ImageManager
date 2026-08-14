@@ -12,6 +12,8 @@
             <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
             <converters:PathToFolderNameConverter x:Key="PathToFolderNameConverter" />
+            <converters:BoolToStarGlyphConverter x:Key="BoolToStarGlyphConverter" />
+            <converters:BoolToStarBrushConverter x:Key="BoolToStarBrushConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

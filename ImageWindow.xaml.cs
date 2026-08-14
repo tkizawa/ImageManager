@@ -101,6 +101,25 @@ public sealed partial class ImageWindow : Window
         ToggleInfoDisplay();
     }
 
+    private void ToggleFavorite_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        ToggleSelectedImageFavorite();
+    }
+
+    private void ToggleFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleSelectedImageFavorite();
+    }
+
+    private void ToggleSelectedImageFavorite()
+    {
+        if (_viewModel?.SelectedImage != null)
+        {
+            _viewModel.SelectedImage.IsFavorite = !_viewModel.SelectedImage.IsFavorite;
+        }
+    }
+
     private void ToggleInfoDisplay()
     {
         bool isCurrentlyVisible = InfoOverlayBorder.Visibility == Visibility.Visible;

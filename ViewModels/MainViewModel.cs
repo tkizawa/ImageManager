@@ -77,6 +77,28 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private int _sortDirectionIndex = 1; // 0: Ascending, 1: Descending
 
+        [ObservableProperty]
+        private bool _showOnlyFavorites;
+
+        partial void OnShowOnlyFavoritesChanged(bool value)
+        {
+            if (!string.IsNullOrEmpty(CurrentFolderPath))
+            {
+                _ = LoadImagesAsync(CurrentFolderPath);
+            }
+        }
+
+        [RelayCommand]
+        private void ToggleFavorite(ImageFile? image)
+        {
+            if (image == null) return;
+            image.IsFavorite = !image.IsFavorite;
+            if (ShowOnlyFavorites && !image.IsFavorite)
+            {
+                Images.Remove(image);
+            }
+        }
+
         private bool _isSorting = false;
 
         partial void OnSortFieldIndexChanged(int value)
@@ -472,6 +494,11 @@ namespace ImageManager.ViewModels
                         DatabaseService.Instance.SyncImageRecord(img, libId, folderPath);
                     }
                     catch { }
+                }
+
+                if (ShowOnlyFavorites)
+                {
+                    newImages = newImages.Where(i => i.IsFavorite).ToList();
                 }
 
                 if (SortFieldIndex == 0) // LastWriteTime
