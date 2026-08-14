@@ -11,9 +11,14 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:PathToFolderNameConverter x:Key="PathToFolderNameConverter" />
             <converters:BoolToStarGlyphConverter x:Key="BoolToStarGlyphConverter" />
             <converters:BoolToStarBrushConverter x:Key="BoolToStarBrushConverter" />
+            <converters:RatingToStarsConverter x:Key="RatingToStarsConverter" />
+            <converters:RatingToStarBrushConverter x:Key="RatingToStarBrushConverter" />
+            <converters:RatingToStarGlyphConverter x:Key="RatingToStarGlyphConverter" />
+            <converters:RatingToVisibilityConverter x:Key="RatingToVisibilityConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

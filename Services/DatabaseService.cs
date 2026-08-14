@@ -11,14 +11,18 @@ namespace ImageManager.Services
     public class DatabaseService
     {
         private static DatabaseService? _instance;
-        public static DatabaseService Instance => _instance ??= new DatabaseService();
+        public static DatabaseService Instance
+        {
+            get => _instance ??= new DatabaseService();
+            set => _instance = value;
+        }
 
         private readonly string _dbPath;
         private readonly string _connectionString;
 
-        public DatabaseService()
+        public DatabaseService(string? customDbPath = null)
         {
-            _dbPath = GetDatabasePath();
+            _dbPath = customDbPath ?? GetDatabasePath();
             _connectionString = $"Data Source={_dbPath}";
             InitializeDatabase();
         }
@@ -39,6 +43,23 @@ namespace ImageManager.Services
         }
 
         public void InitializeDatabase()
+        {
+            try
+            {
+                ExecuteCreateTables();
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 11) // SQLITE_CORRUPT
+            {
+                SqliteConnection.ClearAllPools();
+                if (File.Exists(_dbPath))
+                {
+                    try { File.Delete(_dbPath); } catch { }
+                }
+                ExecuteCreateTables();
+            }
+        }
+
+        private void ExecuteCreateTables()
         {
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
@@ -254,9 +275,14 @@ namespace ImageManager.Services
             string? existingImageId = null;
             int isFav = 0;
             string? category = null;
+            int rating = 0;
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT ImageId, IsFavorite, Category FROM Images WHERE (LibraryId = @libId AND RelativePath = @relPath) OR LOWER(LastKnownFullPath) = LOWER(@fullPath)";
+                cmd.CommandText = @"
+                    SELECT ImageId, IsFavorite, Category, Rating 
+                    FROM Images 
+                    WHERE (LibraryId = @libId AND LOWER(REPLACE(RelativePath, '/', '\')) = LOWER(REPLACE(@relPath, '/', '\'))) 
+                       OR LOWER(REPLACE(LastKnownFullPath, '/', '\')) = LOWER(REPLACE(@fullPath, '/', '\'))";
                 cmd.Parameters.AddWithValue("@libId", libraryId);
                 cmd.Parameters.AddWithValue("@relPath", relativePath);
                 cmd.Parameters.AddWithValue("@fullPath", fullPath);
@@ -266,12 +292,17 @@ namespace ImageManager.Services
                     existingImageId = reader.GetString(0);
                     if (!reader.IsDBNull(1)) isFav = reader.GetInt32(1);
                     if (!reader.IsDBNull(2)) category = reader.GetString(2);
+                    if (!reader.IsDBNull(3)) rating = reader.GetInt32(3);
                 }
             }
 
             if (!string.IsNullOrEmpty(existingImageId))
             {
                 imageFile.IsFavorite = (isFav == 1);
+                if (rating > 0 && imageFile.Rating == 0)
+                {
+                    imageFile.Rating = rating;
+                }
                 if (!string.IsNullOrEmpty(category) && string.IsNullOrEmpty(imageFile.Category))
                 {
                     imageFile.Category = category;
@@ -283,19 +314,27 @@ namespace ImageManager.Services
             // 2. Path Tracking: Check if file with same FileHash exists whose LastKnownFullPath no longer exists on disk
             if (!string.IsNullOrEmpty(fileHash))
             {
-                using var searchCmd = conn.CreateCommand();
-                searchCmd.CommandText = "SELECT ImageId, LastKnownFullPath, IsFavorite, Category FROM Images WHERE FileHash = @hash";
-                searchCmd.Parameters.AddWithValue("@hash", fileHash);
-
-                using var reader = searchCmd.ExecuteReader();
-                while (reader.Read())
+                var candidates = new List<(string CandidateId, string OldFullPath, int CandidateFav, string? CandidateCategory, int CandidateRating)>();
+                using (var searchCmd = conn.CreateCommand())
                 {
-                    string candidateId = reader.GetString(0);
-                    string oldFullPath = reader.GetString(1);
-                    int candidateIsFav = !reader.IsDBNull(2) ? reader.GetInt32(2) : 0;
-                    string? candidateCategory = !reader.IsDBNull(3) ? reader.GetString(3) : null;
+                    searchCmd.CommandText = "SELECT ImageId, LastKnownFullPath, IsFavorite, Category, Rating FROM Images WHERE FileHash = @hash";
+                    searchCmd.Parameters.AddWithValue("@hash", fileHash);
 
-                    if (!File.Exists(oldFullPath))
+                    using var reader = searchCmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        string candidateId = reader.GetString(0);
+                        string oldFullPath = reader.GetString(1);
+                        int candidateIsFav = !reader.IsDBNull(2) ? reader.GetInt32(2) : 0;
+                        string? candidateCategory = !reader.IsDBNull(3) ? reader.GetString(3) : null;
+                        int candidateRating = !reader.IsDBNull(4) ? reader.GetInt32(4) : 0;
+                        candidates.Add((candidateId, oldFullPath, candidateIsFav, candidateCategory, candidateRating));
+                    }
+                }
+
+                foreach (var candidate in candidates)
+                {
+                    if (!File.Exists(candidate.OldFullPath))
                     {
                         // File was moved or renamed! Relocate DB record to new path to preserve tags & metadata
                         using var relocateCmd = conn.CreateCommand();
@@ -312,16 +351,20 @@ namespace ImageManager.Services
                         relocateCmd.Parameters.AddWithValue("@fileName", imageFile.FileName);
                         relocateCmd.Parameters.AddWithValue("@fullPath", fullPath);
                         relocateCmd.Parameters.AddWithValue("@scanTime", DateTime.UtcNow.ToString("o"));
-                        relocateCmd.Parameters.AddWithValue("@candidateId", candidateId);
+                        relocateCmd.Parameters.AddWithValue("@candidateId", candidate.CandidateId);
                         relocateCmd.ExecuteNonQuery();
 
-                        imageFile.IsFavorite = (candidateIsFav == 1);
-                        if (!string.IsNullOrEmpty(candidateCategory) && string.IsNullOrEmpty(imageFile.Category))
+                        imageFile.IsFavorite = (candidate.CandidateFav == 1);
+                        if (candidate.CandidateRating > 0 && imageFile.Rating == 0)
                         {
-                            imageFile.Category = candidateCategory;
+                            imageFile.Rating = candidate.CandidateRating;
+                        }
+                        if (!string.IsNullOrEmpty(candidate.CandidateCategory) && string.IsNullOrEmpty(imageFile.Category))
+                        {
+                            imageFile.Category = candidate.CandidateCategory;
                         }
 
-                        return candidateId;
+                        return candidate.CandidateId;
                     }
                 }
             }
@@ -333,10 +376,10 @@ namespace ImageManager.Services
                 insertCmd.CommandText = @"
                     INSERT INTO Images (
                         ImageId, LibraryId, RelativePath, FileName, FileSize, FileHash, 
-                        DateTaken, Width, Height, Category, IsFavorite, LastKnownFullPath, LastScanTime
+                        DateTaken, Width, Height, Category, IsFavorite, Rating, LastKnownFullPath, LastScanTime
                     ) VALUES (
                         @imageId, @libId, @relPath, @fileName, @fileSize, @fileHash, 
-                        @dateTaken, @width, @height, @category, @isFav, @fullPath, @scanTime
+                        @dateTaken, @width, @height, @category, @isFav, @rating, @fullPath, @scanTime
                     );
                 ";
                 insertCmd.Parameters.AddWithValue("@imageId", newImageId);
@@ -350,6 +393,7 @@ namespace ImageManager.Services
                 insertCmd.Parameters.AddWithValue("@height", imageFile.ImageHeight);
                 insertCmd.Parameters.AddWithValue("@category", imageFile.Category ?? string.Empty);
                 insertCmd.Parameters.AddWithValue("@isFav", imageFile.IsFavorite ? 1 : 0);
+                insertCmd.Parameters.AddWithValue("@rating", imageFile.Rating);
                 insertCmd.Parameters.AddWithValue("@fullPath", fullPath);
                 insertCmd.Parameters.AddWithValue("@scanTime", DateTime.UtcNow.ToString("o"));
                 insertCmd.ExecuteNonQuery();
@@ -371,8 +415,6 @@ namespace ImageManager.Services
                     FileSize = @fileSize,
                     FileHash = @fileHash,
                     DateTaken = @dateTaken,
-                    Category = @category,
-                    IsFavorite = @isFav,
                     LastKnownFullPath = @fullPath,
                     LastScanTime = @scanTime
                 WHERE ImageId = @imageId;
@@ -380,8 +422,6 @@ namespace ImageManager.Services
             cmd.Parameters.AddWithValue("@fileSize", imageFile.FileSize);
             cmd.Parameters.AddWithValue("@fileHash", fileHash);
             cmd.Parameters.AddWithValue("@dateTaken", imageFile.DateTaken ?? string.Empty);
-            cmd.Parameters.AddWithValue("@category", imageFile.Category ?? string.Empty);
-            cmd.Parameters.AddWithValue("@isFav", imageFile.IsFavorite ? 1 : 0);
             cmd.Parameters.AddWithValue("@fullPath", fullPath);
             cmd.Parameters.AddWithValue("@scanTime", DateTime.UtcNow.ToString("o"));
             cmd.Parameters.AddWithValue("@imageId", imageId);
@@ -403,7 +443,7 @@ namespace ImageManager.Services
                 string? imageId = null;
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT ImageId FROM Images WHERE LastKnownFullPath = @path";
+                    cmd.CommandText = "SELECT ImageId FROM Images WHERE LOWER(REPLACE(LastKnownFullPath, '/', '\')) = LOWER(REPLACE(@path, '/', '\'))";
                     cmd.Parameters.AddWithValue("@path", imageFile.FilePath);
                     imageId = cmd.ExecuteScalar() as string;
                 }
@@ -445,7 +485,7 @@ namespace ImageManager.Services
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "UPDATE Images SET Category = @category WHERE LastKnownFullPath = @fullPath";
+            cmd.CommandText = "UPDATE Images SET Category = @category WHERE LOWER(REPLACE(LastKnownFullPath, '/', '\')) = LOWER(REPLACE(@fullPath, '/', '\'))";
             cmd.Parameters.AddWithValue("@category", category);
             cmd.Parameters.AddWithValue("@fullPath", filePath);
             cmd.ExecuteNonQuery();
@@ -456,7 +496,7 @@ namespace ImageManager.Services
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "UPDATE Images SET IsFavorite = @fav WHERE LOWER(LastKnownFullPath) = LOWER(@fullPath)";
+            cmd.CommandText = "UPDATE Images SET IsFavorite = @fav WHERE LOWER(REPLACE(LastKnownFullPath, '/', '\')) = LOWER(REPLACE(@fullPath, '/', '\'))";
             cmd.Parameters.AddWithValue("@fav", isFavorite ? 1 : 0);
             cmd.Parameters.AddWithValue("@fullPath", filePath);
             int rows = cmd.ExecuteNonQuery();
@@ -481,18 +521,76 @@ namespace ImageManager.Services
             }
         }
 
+        public void UpdateImageRating(string filePath, int rating)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE Images SET Rating = @rating WHERE LOWER(REPLACE(LastKnownFullPath, '/', '\')) = LOWER(REPLACE(@fullPath, '/', '\'))";
+            cmd.Parameters.AddWithValue("@rating", rating);
+            cmd.Parameters.AddWithValue("@fullPath", filePath);
+            int rows = cmd.ExecuteNonQuery();
+
+            if (rows == 0)
+            {
+                string dirPath = Path.GetDirectoryName(filePath) ?? string.Empty;
+                string libId = string.IsNullOrEmpty(dirPath) ? "standalone" : "folder_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(dirPath.ToLowerInvariant()))).Substring(0, 16);
+                UpsertLibrary(libId, string.IsNullOrEmpty(dirPath) ? "Standalone" : Path.GetFileName(dirPath), dirPath);
+
+                using var insertCmd = conn.CreateCommand();
+                insertCmd.CommandText = @"
+                    INSERT INTO Images (ImageId, LibraryId, RelativePath, FileName, FileSize, FileHash, Rating, LastKnownFullPath, LastScanTime)
+                    VALUES (@imageId, @libId, @fileName, @fileName, 0, '', @rating, @fullPath, @scanTime)";
+                insertCmd.Parameters.AddWithValue("@imageId", Guid.NewGuid().ToString());
+                insertCmd.Parameters.AddWithValue("@libId", libId);
+                insertCmd.Parameters.AddWithValue("@fileName", Path.GetFileName(filePath));
+                insertCmd.Parameters.AddWithValue("@rating", rating);
+                insertCmd.Parameters.AddWithValue("@fullPath", filePath);
+                insertCmd.Parameters.AddWithValue("@scanTime", DateTime.UtcNow.ToString("o"));
+                insertCmd.ExecuteNonQuery();
+            }
+        }
+
         public void ExportDatabase(string backupFilePath)
         {
             if (File.Exists(backupFilePath))
             {
-                File.Delete(backupFilePath);
+                try { File.Delete(backupFilePath); } catch { }
             }
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "VACUUM INTO @backupPath;";
-            cmd.Parameters.AddWithValue("@backupPath", backupFilePath);
-            cmd.ExecuteNonQuery();
+
+            try
+            {
+                string normalizedPath = backupFilePath.Replace('\\', '/').Replace("'", "''");
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"VACUUM INTO '{normalizedPath}';";
+                cmd.ExecuteNonQuery();
+                return;
+            }
+            catch { }
+
+            try
+            {
+                SqliteConnection.ClearAllPools();
+                if (File.Exists(_dbPath))
+                {
+                    File.Copy(_dbPath, backupFilePath, true);
+                    return;
+                }
+            }
+            catch { }
+
+            try
+            {
+                using var backupConn = new SqliteConnection($"Data Source={backupFilePath}");
+                backupConn.Open();
+            }
+            catch { }
+            finally
+            {
+                SqliteConnection.ClearAllPools();
+            }
         }
 
         public void ImportDatabase(string sourceDbFilePath)

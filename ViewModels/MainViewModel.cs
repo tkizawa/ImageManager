@@ -18,16 +18,45 @@ namespace ImageManager.ViewModels
         [ObservableProperty]
         private string _currentFolderPath = string.Empty;
 
+        partial void OnCurrentFolderPathChanged(string value)
+        {
+            CanPaste = !string.IsNullOrEmpty(value) && _clipboardFilePaths.Count > 0;
+        }
+
         public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.0.0"}";
 
         [ObservableProperty]
         private ObservableCollection<ImageFile> _images = new();
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsSingleImageSelected))]
         private ImageFile? _selectedImage;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(SelectedImagesCount))]
+        [NotifyPropertyChangedFor(nameof(IsSingleImageSelected))]
+        [NotifyPropertyChangedFor(nameof(HasMultipleImagesSelected))]
+        [NotifyPropertyChangedFor(nameof(HasAnyImageSelected))]
+        [NotifyPropertyChangedFor(nameof(MultiSelectionSummary))]
+        private ObservableCollection<ImageFile> _selectedImages = new();
+
+        public int SelectedImagesCount => SelectedImages.Count;
+        public bool IsSingleImageSelected => SelectedImages.Count == 1 && SelectedImage != null;
+        public bool HasMultipleImagesSelected => SelectedImages.Count > 1;
+        public bool HasAnyImageSelected => SelectedImages.Count > 0;
+        public string MultiSelectionSummary => $"{SelectedImages.Count} 件の画像を選択中";
+
+        [ObservableProperty]
+        private bool _canPaste;
+
+        private readonly List<string> _clipboardFilePaths = new();
+        private bool _isClipboardCut = false;
+        public IReadOnlyList<string> ClipboardFilePaths => _clipboardFilePaths;
+        public bool IsClipboardCut => _isClipboardCut;
 
         public event System.EventHandler<DirectoryNodeViewModel>? FolderSelectedEvent;
         public event System.EventHandler<(string titleKey, string messageKey)>? ShowMessageRequested;
+        public event System.EventHandler<(string title, string message)>? ShowDirectMessageRequested;
 
         partial void OnSelectedImageChanged(ImageFile? value)
         {
@@ -88,12 +117,90 @@ namespace ImageManager.ViewModels
             }
         }
 
+        public Task? CurrentLoadTask { get; private set; }
+
+        public async Task ReloadCurrentFolderAsync()
+        {
+            if (!string.IsNullOrEmpty(CurrentFolderPath))
+            {
+                await LoadImagesAsync(CurrentFolderPath);
+            }
+        }
+
+        [ObservableProperty]
+        private int _ratingFilterIndex = 0; // 0: All, 1: ★1, 2: ★2, 3: ★3, 4: ★4, 5: ★5, 6: No Rating (0)
+
+        partial void OnRatingFilterIndexChanged(int value)
+        {
+            var settings = _settingsService.Load();
+            if (settings.RatingFilterIndex != value)
+            {
+                settings.RatingFilterIndex = value;
+                _settingsService.Save(settings);
+            }
+
+            if (!string.IsNullOrEmpty(CurrentFolderPath))
+            {
+                _ = LoadImagesAsync(CurrentFolderPath);
+            }
+        }
+
         [RelayCommand]
         private void ToggleFavorite(ImageFile? image)
         {
             if (image == null) return;
             image.IsFavorite = !image.IsFavorite;
             if (ShowOnlyFavorites && !image.IsFavorite)
+            {
+                Images.Remove(image);
+            }
+        }
+
+        [RelayCommand]
+        public void SetRating(object? parameter)
+        {
+            if (parameter == null) return;
+            int targetRating = 0;
+            if (parameter is int r) targetRating = r;
+            else if (parameter is string s && int.TryParse(s, out int parsed)) targetRating = parsed;
+
+            var targets = SelectedImages.Count > 0 ? SelectedImages.ToList() : (SelectedImage != null ? new List<ImageFile> { SelectedImage } : new List<ImageFile>());
+            if (targets.Count == 0) return;
+
+            int clamped = Math.Clamp(targetRating, 0, 5);
+            foreach (var img in targets)
+            {
+                img.Rating = clamped;
+                CheckAndRemoveIfFilteredOut(img);
+            }
+        }
+
+        [RelayCommand]
+        public void ToggleStarRating(object? parameter)
+        {
+            if (parameter == null) return;
+            int star = 0;
+            if (parameter is int r) star = r;
+            else if (parameter is string s && int.TryParse(s, out int parsed)) star = parsed;
+
+            var targets = SelectedImages.Count > 0 ? SelectedImages.ToList() : (SelectedImage != null ? new List<ImageFile> { SelectedImage } : new List<ImageFile>());
+            if (targets.Count == 0) return;
+
+            int newRating = (targets.Count == 1 && targets[0].Rating == star) ? 0 : Math.Clamp(star, 0, 5);
+            foreach (var img in targets)
+            {
+                img.Rating = newRating;
+                CheckAndRemoveIfFilteredOut(img);
+            }
+        }
+
+        private void CheckAndRemoveIfFilteredOut(ImageFile image)
+        {
+            if (RatingFilterIndex >= 1 && RatingFilterIndex <= 5 && image.Rating != RatingFilterIndex)
+            {
+                Images.Remove(image);
+            }
+            else if (RatingFilterIndex == 6 && image.Rating != 0)
             {
                 Images.Remove(image);
             }
@@ -168,12 +275,19 @@ namespace ImageManager.ViewModels
                         else
                             return list.OrderByDescending(i => i.LastWriteTime).ToList();
                     }
-                    else // DateTaken
+                    else if (SortFieldIndex == 1) // DateTaken
                     {
                         if (SortDirectionIndex == 0)
                             return list.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                         else
                             return list.OrderByDescending(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                    }
+                    else // Rating
+                    {
+                        if (SortDirectionIndex == 0)
+                            return list.OrderBy(i => i.Rating).ThenByDescending(i => i.LastWriteTime).ToList();
+                        else
+                            return list.OrderByDescending(i => i.Rating).ThenByDescending(i => i.LastWriteTime).ToList();
                     }
                 });
 
@@ -223,11 +337,13 @@ namespace ImageManager.ViewModels
         }
 
         private readonly Microsoft.UI.Dispatching.DispatcherQueue? _dispatcherQueue;
+        private readonly DatabaseService _databaseService;
 
-        public MainViewModel(IFileSystemService fileSystemService, ISettingsService settingsService)
+        public MainViewModel(IFileSystemService fileSystemService, ISettingsService settingsService, DatabaseService? databaseService = null)
         {
             _fileSystemService = fileSystemService;
             _settingsService = settingsService;
+            _databaseService = databaseService ?? DatabaseService.Instance;
             try
             {
                 _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
@@ -262,6 +378,7 @@ namespace ImageManager.ViewModels
 
             SortFieldIndex = settings.SortFieldIndex;
             SortDirectionIndex = settings.SortDirectionIndex;
+            RatingFilterIndex = settings.RatingFilterIndex;
 
             if (settings.FavoriteFolders != null)
             {
@@ -475,10 +592,23 @@ namespace ImageManager.ViewModels
 
         private async Task LoadImagesAsync(string folderPath)
         {
+            var task = LoadImagesInternalAsync(folderPath);
+            CurrentLoadTask = task;
+            await task;
+        }
+
+        private async Task LoadImagesInternalAsync(string folderPath)
+        {
             RunOnUIThread(() =>
             {
                 Images.Clear();
+                SelectedImages.Clear();
                 SelectedImage = null;
+                OnPropertyChanged(nameof(SelectedImagesCount));
+                OnPropertyChanged(nameof(IsSingleImageSelected));
+                OnPropertyChanged(nameof(HasMultipleImagesSelected));
+                OnPropertyChanged(nameof(HasAnyImageSelected));
+                OnPropertyChanged(nameof(MultiSelectionSummary));
             });
             
             await Task.Run(async () => 
@@ -491,16 +621,29 @@ namespace ImageManager.ViewModels
                 {
                     try
                     {
-                        DatabaseService.Instance.SyncImageRecord(img, libId, folderPath);
+                        _databaseService.SyncImageRecord(img, libId, folderPath);
                     }
                     catch { }
                 }
 
+                // 1. お気に入りフィルター
                 if (ShowOnlyFavorites)
                 {
                     newImages = newImages.Where(i => i.IsFavorite).ToList();
                 }
 
+                // 2. レートフィルター (AND条件)
+                if (RatingFilterIndex >= 1 && RatingFilterIndex <= 5)
+                {
+                    int targetRating = RatingFilterIndex;
+                    newImages = newImages.Where(i => i.Rating == targetRating).ToList();
+                }
+                else if (RatingFilterIndex == 6)
+                {
+                    newImages = newImages.Where(i => i.Rating == 0).ToList();
+                }
+
+                // 3. ソート
                 if (SortFieldIndex == 0) // LastWriteTime
                 {
                     if (SortDirectionIndex == 0) // Ascending
@@ -508,12 +651,19 @@ namespace ImageManager.ViewModels
                     else
                         newImages = newImages.OrderByDescending(i => i.LastWriteTime).ToList();
                 }
-                else // DateTaken
+                else if (SortFieldIndex == 1) // DateTaken
                 {
                     if (SortDirectionIndex == 0)
                         newImages = newImages.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                     else
                         newImages = newImages.OrderByDescending(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
+                }
+                else // Rating
+                {
+                    if (SortDirectionIndex == 0)
+                        newImages = newImages.OrderBy(i => i.Rating).ThenByDescending(i => i.LastWriteTime).ToList();
+                    else
+                        newImages = newImages.OrderByDescending(i => i.Rating).ThenByDescending(i => i.LastWriteTime).ToList();
                 }
                 
                 RunOnUIThread(() => 
@@ -527,16 +677,27 @@ namespace ImageManager.ViewModels
                         if (target != null)
                         {
                             SelectedImage = target;
+                            SelectedImages.Clear();
+                            SelectedImages.Add(target);
                         }
                         else if (Images.Count > 0)
                         {
                             SelectedImage = Images[0];
+                            SelectedImages.Clear();
+                            SelectedImages.Add(Images[0]);
                         }
                     }
                     else if (Images.Count > 0)
                     {
                         SelectedImage = Images[0];
+                        SelectedImages.Clear();
+                        SelectedImages.Add(Images[0]);
                     }
+                    OnPropertyChanged(nameof(SelectedImagesCount));
+                    OnPropertyChanged(nameof(IsSingleImageSelected));
+                    OnPropertyChanged(nameof(HasMultipleImagesSelected));
+                    OnPropertyChanged(nameof(HasAnyImageSelected));
+                    OnPropertyChanged(nameof(MultiSelectionSummary));
                 });
 
                 if (SortFieldIndex == 1) // DateTaken background loading
@@ -890,5 +1051,264 @@ namespace ImageManager.ViewModels
             await SelectFolderFromTreeAsync(newFolderPath);
             return true;
         }
+
+        #region Multi-Selection and File Operations
+
+        public void UpdateSelectedImages(IEnumerable<ImageFile> selected)
+        {
+            var list = selected.ToList();
+            SelectedImages.Clear();
+            foreach (var item in list)
+            {
+                SelectedImages.Add(item);
+            }
+
+            if (SelectedImages.Count == 1)
+            {
+                SelectedImage = SelectedImages[0];
+            }
+            else
+            {
+                SelectedImage = null;
+            }
+
+            OnPropertyChanged(nameof(SelectedImagesCount));
+            OnPropertyChanged(nameof(IsSingleImageSelected));
+            OnPropertyChanged(nameof(HasMultipleImagesSelected));
+            OnPropertyChanged(nameof(HasAnyImageSelected));
+            OnPropertyChanged(nameof(MultiSelectionSummary));
+        }
+
+        public void CopySelectedToClipboard()
+        {
+            if (SelectedImages.Count == 0) return;
+            _clipboardFilePaths.Clear();
+            _clipboardFilePaths.AddRange(SelectedImages.Select(i => i.FilePath));
+            _isClipboardCut = false;
+            CanPaste = !string.IsNullOrEmpty(CurrentFolderPath) && _clipboardFilePaths.Count > 0;
+        }
+
+        public void CutSelectedToClipboard()
+        {
+            if (SelectedImages.Count == 0) return;
+            _clipboardFilePaths.Clear();
+            _clipboardFilePaths.AddRange(SelectedImages.Select(i => i.FilePath));
+            _isClipboardCut = true;
+            CanPaste = !string.IsNullOrEmpty(CurrentFolderPath) && _clipboardFilePaths.Count > 0;
+        }
+
+        public async Task<int> CopyFilesToFolderAsync(IEnumerable<string> filePaths, string destDirectory)
+        {
+            var files = filePaths.Where(f => System.IO.File.Exists(f)).ToList();
+            if (files.Count == 0 || string.IsNullOrEmpty(destDirectory) || !System.IO.Directory.Exists(destDirectory))
+                return 0;
+
+            int copiedCount = 0;
+            bool isCurrentFolder = destDirectory.Equals(CurrentFolderPath, System.StringComparison.OrdinalIgnoreCase);
+            string libId = GetFolderLibraryId(destDirectory);
+
+            await Task.Run(() =>
+            {
+                foreach (var srcPath in files)
+                {
+                    try
+                    {
+                        string fileName = System.IO.Path.GetFileName(srcPath);
+                        string destPath = GetUniqueDestinationPath(destDirectory, fileName);
+                        System.IO.File.Copy(srcPath, destPath, overwrite: false);
+                        copiedCount++;
+
+                        if (isCurrentFolder)
+                        {
+                            var newImg = new ImageFile(destPath);
+                            try
+                            {
+                                DatabaseService.Instance.SyncImageRecord(newImg, libId, destDirectory);
+                            }
+                            catch { }
+
+                            RunOnUIThread(() =>
+                            {
+                                Images.Add(newImg);
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to copy file '{srcPath}': {ex.Message}");
+                    }
+                }
+            });
+
+            if (isCurrentFolder && copiedCount > 0)
+            {
+                _ = SortImagesAsync();
+            }
+
+            return copiedCount;
+        }
+
+        public async Task<int> MoveFilesToFolderAsync(IEnumerable<string> filePaths, string destDirectory)
+        {
+            var files = filePaths.Where(f => System.IO.File.Exists(f)).ToList();
+            if (files.Count == 0 || string.IsNullOrEmpty(destDirectory) || !System.IO.Directory.Exists(destDirectory))
+                return 0;
+
+            bool isCurrentFolder = destDirectory.Equals(CurrentFolderPath, System.StringComparison.OrdinalIgnoreCase);
+            int movedCount = 0;
+            var movedImages = new List<ImageFile>();
+
+            await Task.Run(() =>
+            {
+                foreach (var srcPath in files)
+                {
+                    try
+                    {
+                        string fileName = System.IO.Path.GetFileName(srcPath);
+                        string destPath = GetUniqueDestinationPath(destDirectory, fileName);
+                        
+                        // If destination is exact same path, skip
+                        if (srcPath.Equals(destPath, System.StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        System.IO.File.Move(srcPath, destPath);
+                        movedCount++;
+
+                        var matchingImg = Images.FirstOrDefault(i => i.FilePath.Equals(srcPath, System.StringComparison.OrdinalIgnoreCase));
+                        if (matchingImg != null)
+                        {
+                            movedImages.Add(matchingImg);
+                        }
+
+                        try
+                        {
+                            DatabaseService.Instance.RelocateFolderPath(srcPath, destPath);
+                        }
+                        catch { }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to move file '{srcPath}': {ex.Message}");
+                    }
+                }
+            });
+
+            if (!isCurrentFolder && movedImages.Count > 0)
+            {
+                RunOnUIThread(() =>
+                {
+                    foreach (var img in movedImages)
+                    {
+                        Images.Remove(img);
+                        SelectedImages.Remove(img);
+                    }
+                    if (SelectedImages.Count == 1)
+                    {
+                        SelectedImage = SelectedImages[0];
+                    }
+                    else
+                    {
+                        SelectedImage = null;
+                    }
+                    OnPropertyChanged(nameof(SelectedImagesCount));
+                    OnPropertyChanged(nameof(IsSingleImageSelected));
+                    OnPropertyChanged(nameof(HasMultipleImagesSelected));
+                    OnPropertyChanged(nameof(HasAnyImageSelected));
+                    OnPropertyChanged(nameof(MultiSelectionSummary));
+                });
+            }
+
+            return movedCount;
+        }
+
+        public async Task<int> PasteFromClipboardAsync(string? targetFolder = null)
+        {
+            string destDir = targetFolder ?? CurrentFolderPath;
+            if (string.IsNullOrEmpty(destDir) || !System.IO.Directory.Exists(destDir) || _clipboardFilePaths.Count == 0)
+                return 0;
+
+            int count = 0;
+            if (_isClipboardCut)
+            {
+                count = await MoveFilesToFolderAsync(_clipboardFilePaths, destDir);
+                _clipboardFilePaths.Clear();
+                _isClipboardCut = false;
+                CanPaste = false;
+            }
+            else
+            {
+                count = await CopyFilesToFolderAsync(_clipboardFilePaths, destDir);
+            }
+            return count;
+        }
+
+        public async Task<int> DeleteSelectedImagesAsync()
+        {
+            var list = SelectedImages.ToList();
+            if (list.Count == 0) return 0;
+
+            int deletedCount = 0;
+            await Task.Run(() =>
+            {
+                foreach (var img in list)
+                {
+                    try
+                    {
+                        if (System.IO.File.Exists(img.FilePath))
+                        {
+                            System.IO.File.Delete(img.FilePath);
+                            deletedCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to delete file '{img.FilePath}': {ex.Message}");
+                    }
+                }
+            });
+
+            RunOnUIThread(() =>
+            {
+                foreach (var img in list)
+                {
+                    Images.Remove(img);
+                    SelectedImages.Remove(img);
+                }
+                SelectedImage = null;
+                OnPropertyChanged(nameof(SelectedImagesCount));
+                OnPropertyChanged(nameof(IsSingleImageSelected));
+                OnPropertyChanged(nameof(HasMultipleImagesSelected));
+                OnPropertyChanged(nameof(HasAnyImageSelected));
+                OnPropertyChanged(nameof(MultiSelectionSummary));
+            });
+
+            return deletedCount;
+        }
+
+        private static string GetUniqueDestinationPath(string destDir, string originalFileName)
+        {
+            string nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(originalFileName);
+            string ext = System.IO.Path.GetExtension(originalFileName);
+            string destPath = System.IO.Path.Combine(destDir, originalFileName);
+            int count = 1;
+
+            while (System.IO.File.Exists(destPath))
+            {
+                string newName = count == 1 
+                    ? $"{nameWithoutExt} - コピー{ext}" 
+                    : $"{nameWithoutExt} - コピー ({count}){ext}";
+                destPath = System.IO.Path.Combine(destDir, newName);
+                count++;
+            }
+
+            return destPath;
+        }
+
+        public void RaiseDirectMessage(string title, string message)
+        {
+            ShowDirectMessageRequested?.Invoke(this, (title, message));
+        }
+
+        #endregion
     }
 }

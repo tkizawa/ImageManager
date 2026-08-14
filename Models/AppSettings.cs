@@ -25,6 +25,7 @@ namespace ImageManager.Models
         public double ThumbnailSize { get; set; } = 100;
         public int SortFieldIndex { get; set; } = 0;
         public int SortDirectionIndex { get; set; } = 1;
+        public int RatingFilterIndex { get; set; } = 0;
         public string SelectedImageFilePath { get; set; } = string.Empty;
 
         public bool UseOllamaForClassification { get; set; } = false;

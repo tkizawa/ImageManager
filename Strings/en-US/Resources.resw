@@ -220,4 +220,103 @@
   <data name="RelocateFolderMenu.Text" xml:space="preserve">
     <value>Change Folder Location...</value>
   </data>
+  <data name="CopyMenu.Text" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="CutMenu.Text" xml:space="preserve">
+    <value>Cut</value>
+  </data>
+  <data name="PasteMenu.Text" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="CopyToFolderMenu.Text" xml:space="preserve">
+    <value>Copy to Folder...</value>
+  </data>
+  <data name="MoveToFolderMenu.Text" xml:space="preserve">
+    <value>Move to Folder...</value>
+  </data>
+  <data name="DeleteMenu.Text" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="CopyButtonText" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="MoveButtonText" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="PasteButtonText" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="MultipleItemsSelectedText" xml:space="preserve">
+    <value>{0} images selected</value>
+  </data>
+  <data name="NoImageSelectedText" xml:space="preserve">
+    <value>No image selected</value>
+  </data>
+  <data name="CopySuccessTitle" xml:space="preserve">
+    <value>Copy Complete</value>
+  </data>
+  <data name="CopySuccessMessage" xml:space="preserve">
+    <value>Successfully copied {0} images.</value>
+  </data>
+  <data name="MoveSuccessTitle" xml:space="preserve">
+    <value>Move Complete</value>
+  </data>
+  <data name="MoveSuccessMessage" xml:space="preserve">
+    <value>Successfully moved {0} images.</value>
+  </data>
+  <data name="DeleteConfirmTitle" xml:space="preserve">
+    <value>Delete Images</value>
+  </data>
+  <data name="DeleteConfirmMessage" xml:space="preserve">
+    <value>Are you sure you want to delete {0} selected images?</value>
+  </data>
+  <data name="DeleteSuccessTitle" xml:space="preserve">
+    <value>Delete Complete</value>
+  </data>
+  <data name="DeleteSuccessMessage" xml:space="preserve">
+    <value>Successfully deleted {0} images.</value>
+  </data>
+  <data name="FileOperationErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="FileOperationErrorMessage" xml:space="preserve">
+    <value>An error occurred during file operation: {0}</value>
+  </data>
+  <data name="SortRating.Content" xml:space="preserve">
+    <value>Rating</value>
+  </data>
+  <data name="RatingLabelText.Text" xml:space="preserve">
+    <value>Rating:</value>
+  </data>
+  <data name="SetRatingMenu.Text" xml:space="preserve">
+    <value>Set Rating</value>
+  </data>
+  <data name="RatingText" xml:space="preserve">
+    <value>Rating</value>
+  </data>
+  <data name="NoRatingText" xml:space="preserve">
+    <value>No Rating</value>
+  </data>
+  <data name="RatingFilterAll.Content" xml:space="preserve">
+    <value>All Ratings</value>
+  </data>
+  <data name="RatingFilterStar1.Content" xml:space="preserve">
+    <value>★1 (★☆☆☆☆)</value>
+  </data>
+  <data name="RatingFilterStar2.Content" xml:space="preserve">
+    <value>★2 (★★☆☆☆)</value>
+  </data>
+  <data name="RatingFilterStar3.Content" xml:space="preserve">
+    <value>★3 (★★★☆☆)</value>
+  </data>
+  <data name="RatingFilterStar4.Content" xml:space="preserve">
+    <value>★4 (★★★★☆)</value>
+  </data>
+  <data name="RatingFilterStar5.Content" xml:space="preserve">
+    <value>★5 (★★★★★)</value>
+  </data>
+  <data name="RatingFilterNone.Content" xml:space="preserve">
+    <value>No Rating</value>
+  </data>
 </root>

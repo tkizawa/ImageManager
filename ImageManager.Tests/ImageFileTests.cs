@@ -105,5 +105,28 @@ namespace ImageManager.Tests
             // Act & Assert
             Assert.Equal("4 B", imageFile.FormattedFileSize);
         }
+
+        [Fact]
+        public void Rating_ClampsBetween0And5_AndUpdatesFormattedRating()
+        {
+            // Arrange
+            var imageFile = new ImageFile(_tempFilePath);
+
+            // Default
+            Assert.Equal(0, imageFile.Rating);
+            Assert.False(imageFile.HasRating);
+            Assert.Equal("なし", imageFile.FormattedRating);
+
+            // Set Rating 3
+            imageFile.Rating = 3;
+            Assert.Equal(3, imageFile.Rating);
+            Assert.True(imageFile.HasRating);
+            Assert.Equal("★★★☆☆ (3)", imageFile.FormattedRating);
+
+            // Clamp check
+            imageFile.Rating = 5;
+            Assert.Equal(5, imageFile.Rating);
+            Assert.Equal("★★★★★ (5)", imageFile.FormattedRating);
+        }
     }
 }

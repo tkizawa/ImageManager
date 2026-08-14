@@ -69,6 +69,43 @@ namespace ImageManager.Models
             }
         }
 
+        [ObservableProperty]
+        private int _rating; // 0: None, 1..5: ★1..★5
+
+        partial void OnRatingChanged(int value)
+        {
+            if (value < 0 || value > 5)
+            {
+                int clamped = Math.Clamp(value, 0, 5);
+                if (_rating != clamped)
+                {
+                    _rating = clamped;
+                }
+            }
+            OnPropertyChanged(nameof(FormattedRating));
+            OnPropertyChanged(nameof(HasRating));
+
+            if (!string.IsNullOrEmpty(FilePath))
+            {
+                try
+                {
+                    DatabaseService.Instance.UpdateImageRating(FilePath, _rating);
+                }
+                catch { }
+            }
+        }
+
+        public bool HasRating => Rating > 0;
+
+        public string FormattedRating
+        {
+            get
+            {
+                if (Rating <= 0) return "なし";
+                return new string('★', Math.Min(5, Rating)) + new string('☆', Math.Max(0, 5 - Rating)) + $" ({Rating})";
+            }
+        }
+
         public bool IsExifLoaded { get; private set; }
 
         public ImageFile(string path)
@@ -91,6 +128,7 @@ namespace ImageManager.Models
             IsExifLoaded = true;
 
             string dateTaken = string.Empty, cameraModel = string.Empty, lens = string.Empty, exposureTime = string.Empty, fNumber = string.Empty, isoSpeed = string.Empty, focalLength = string.Empty;
+            int metaRating = 0;
 
             try
             {
@@ -107,6 +145,14 @@ namespace ImageManager.Models
                         if (exifIfd0 != null)
                         {
                             cameraModel = exifIfd0.GetDescription(MetadataExtractor.Formats.Exif.ExifIfd0Directory.TagModel) ?? string.Empty;
+                            if (exifIfd0.ContainsTag(18246))
+                            {
+                                var ratingStr = exifIfd0.GetDescription(18246);
+                                if (int.TryParse(ratingStr, out int r) && r >= 1 && r <= 5)
+                                {
+                                    metaRating = r;
+                                }
+                            }
                         }
 
                         if (exifSubIfd != null)
@@ -131,6 +177,11 @@ namespace ImageManager.Models
             FNumber = fNumber;
             IsoSpeed = isoSpeed;
             FocalLength = focalLength;
+
+            if (Rating == 0 && metaRating > 0)
+            {
+                Rating = metaRating;
+            }
 
             OnPropertyChanged(nameof(FormattedDateTaken));
             OnPropertyChanged(nameof(FormattedExposureSpecs));

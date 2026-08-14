@@ -27,7 +27,7 @@ namespace ImageManager.Tests
         [Fact]
         public void DatabaseService_InitializeDatabase_ExecutesWithoutErrors()
         {
-            var dbService = new DatabaseService();
+            var dbService = new DatabaseService(Path.Combine(_tempDirectory, "init.db"));
             dbService.InitializeDatabase();
             // Succeeds without exception
         }
@@ -48,7 +48,7 @@ namespace ImageManager.Tests
         [Fact]
         public void SyncImageRecord_And_UpdateLibraryFullPaths_RelocatesAllFilesOnLibraryRootChange()
         {
-            var dbService = new DatabaseService();
+            var dbService = new DatabaseService(Path.Combine(_tempDirectory, "relocate_root.db"));
             string libId = Guid.NewGuid().ToString();
             string oldRoot = Path.Combine(_tempDirectory, "OldPhotos");
             string newRoot = Path.Combine(_tempDirectory, "NewPhotos");
@@ -82,7 +82,7 @@ namespace ImageManager.Tests
         [Fact]
         public void SyncImageRecord_AutoRelocatesImage_WhenMovedToDifferentSubfolder()
         {
-            var dbService = new DatabaseService();
+            var dbService = new DatabaseService(Path.Combine(_tempDirectory, "relocate_sub.db"));
             string libId = Guid.NewGuid().ToString();
             string rootDir = Path.Combine(_tempDirectory, "PhotosRoot");
             string subDir1 = Path.Combine(rootDir, "FolderA");
@@ -114,7 +114,7 @@ namespace ImageManager.Tests
         [Fact]
         public void RelocateFolderPath_UpdatesImagePathsInDatabase()
         {
-            var dbService = new DatabaseService();
+            var dbService = new DatabaseService(Path.Combine(_tempDirectory, "relocate_folder.db"));
             string libId = Guid.NewGuid().ToString();
             string oldFolder = Path.Combine(_tempDirectory, "TEST");
             string newFolder = Path.Combine(_tempDirectory, "TEST1");
@@ -143,7 +143,7 @@ namespace ImageManager.Tests
         [Fact]
         public void UpdateImageFavorite_PersistsFavoriteFlagAcrossResync()
         {
-            var dbService = new DatabaseService();
+            var dbService = new DatabaseService(Path.Combine(_tempDirectory, "fav.db"));
             string folderPath = Path.Combine(_tempDirectory, "FavFolder");
             Directory.CreateDirectory(folderPath);
             string testFile = Path.Combine(folderPath, "fav_sample.jpg");
@@ -155,13 +155,37 @@ namespace ImageManager.Tests
             dbService.SyncImageRecord(imgFile, libId, folderPath);
 
             // User marks image as favorite
-            imgFile.IsFavorite = true;
+            dbService.UpdateImageFavorite(testFile, true);
 
             // Simulate app restart / folder resync: create fresh ImageFile instance
             var resyncedImgFile = new ImageFile(testFile);
             dbService.SyncImageRecord(resyncedImgFile, libId, folderPath);
 
             Assert.True(resyncedImgFile.IsFavorite);
+        }
+
+        [Fact]
+        public void UpdateImageRating_PersistsRatingAcrossResync()
+        {
+            var dbService = new DatabaseService(Path.Combine(_tempDirectory, "rating.db"));
+            string folderPath = Path.Combine(_tempDirectory, "RatingFolder");
+            Directory.CreateDirectory(folderPath);
+            string testFile = Path.Combine(folderPath, "rating_sample.jpg");
+            File.WriteAllText(testFile, "Rating Image Data 456");
+
+            string libId = "folder_ratinglib";
+
+            var imgFile = new ImageFile(testFile);
+            dbService.SyncImageRecord(imgFile, libId, folderPath);
+
+            // User sets rating to 4
+            dbService.UpdateImageRating(testFile, 4);
+
+            // Simulate resync
+            var resyncedImgFile = new ImageFile(testFile);
+            dbService.SyncImageRecord(resyncedImgFile, libId, folderPath);
+
+            Assert.Equal(4, resyncedImgFile.Rating);
         }
     }
 }

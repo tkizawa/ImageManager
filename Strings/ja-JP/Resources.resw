@@ -220,4 +220,103 @@
   <data name="RelocateFolderMenu.Text" xml:space="preserve">
     <value>フォルダの場所を変更...</value>
   </data>
+  <data name="CopyMenu.Text" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="CutMenu.Text" xml:space="preserve">
+    <value>切り取り</value>
+  </data>
+  <data name="PasteMenu.Text" xml:space="preserve">
+    <value>貼り付け</value>
+  </data>
+  <data name="CopyToFolderMenu.Text" xml:space="preserve">
+    <value>フォルダへコピー...</value>
+  </data>
+  <data name="MoveToFolderMenu.Text" xml:space="preserve">
+    <value>フォルダへ移動...</value>
+  </data>
+  <data name="DeleteMenu.Text" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="CopyButtonText" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="MoveButtonText" xml:space="preserve">
+    <value>移動</value>
+  </data>
+  <data name="PasteButtonText" xml:space="preserve">
+    <value>貼り付け</value>
+  </data>
+  <data name="MultipleItemsSelectedText" xml:space="preserve">
+    <value>{0} 件の画像を選択中</value>
+  </data>
+  <data name="NoImageSelectedText" xml:space="preserve">
+    <value>画像が選択されていません</value>
+  </data>
+  <data name="CopySuccessTitle" xml:space="preserve">
+    <value>コピー完了</value>
+  </data>
+  <data name="CopySuccessMessage" xml:space="preserve">
+    <value>{0} 件の画像をコピーしました。</value>
+  </data>
+  <data name="MoveSuccessTitle" xml:space="preserve">
+    <value>移動完了</value>
+  </data>
+  <data name="MoveSuccessMessage" xml:space="preserve">
+    <value>{0} 件の画像を移動しました。</value>
+  </data>
+  <data name="DeleteConfirmTitle" xml:space="preserve">
+    <value>画像の削除</value>
+  </data>
+  <data name="DeleteConfirmMessage" xml:space="preserve">
+    <value>選択した {0} 件の画像を削除（ごみ箱へ移動）しますか？</value>
+  </data>
+  <data name="DeleteSuccessTitle" xml:space="preserve">
+    <value>削除完了</value>
+  </data>
+  <data name="DeleteSuccessMessage" xml:space="preserve">
+    <value>{0} 件の画像を削除しました。</value>
+  </data>
+  <data name="FileOperationErrorTitle" xml:space="preserve">
+    <value>エラー</value>
+  </data>
+  <data name="FileOperationErrorMessage" xml:space="preserve">
+    <value>ファイル処理中にエラーが発生しました: {0}</value>
+  </data>
+  <data name="SortRating.Content" xml:space="preserve">
+    <value>レート</value>
+  </data>
+  <data name="RatingLabelText.Text" xml:space="preserve">
+    <value>レート:</value>
+  </data>
+  <data name="SetRatingMenu.Text" xml:space="preserve">
+    <value>レートを設定</value>
+  </data>
+  <data name="RatingText" xml:space="preserve">
+    <value>レート</value>
+  </data>
+  <data name="NoRatingText" xml:space="preserve">
+    <value>レートなし</value>
+  </data>
+  <data name="RatingFilterAll.Content" xml:space="preserve">
+    <value>すべてのレート</value>
+  </data>
+  <data name="RatingFilterStar1.Content" xml:space="preserve">
+    <value>★1 (★☆☆☆☆)</value>
+  </data>
+  <data name="RatingFilterStar2.Content" xml:space="preserve">
+    <value>★2 (★★☆☆☆)</value>
+  </data>
+  <data name="RatingFilterStar3.Content" xml:space="preserve">
+    <value>★3 (★★★☆☆)</value>
+  </data>
+  <data name="RatingFilterStar4.Content" xml:space="preserve">
+    <value>★4 (★★★★☆)</value>
+  </data>
+  <data name="RatingFilterStar5.Content" xml:space="preserve">
+    <value>★5 (★★★★★)</value>
+  </data>
+  <data name="RatingFilterNone.Content" xml:space="preserve">
+    <value>レートなし</value>
+  </data>
 </root>

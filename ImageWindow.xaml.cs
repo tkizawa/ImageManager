@@ -1,5 +1,6 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using WinRT.Interop;
@@ -110,6 +111,37 @@ public sealed partial class ImageWindow : Window
     private void ToggleFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
     {
         ToggleSelectedImageFavorite();
+    }
+
+    private void SetRatingMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is string tagStr && int.TryParse(tagStr, out int rating))
+        {
+            SetSelectedImageRating(rating);
+        }
+    }
+
+    private void RatingKey_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        int rating = 0;
+        if (sender.Key >= Windows.System.VirtualKey.Number0 && sender.Key <= Windows.System.VirtualKey.Number5)
+        {
+            rating = (int)(sender.Key - Windows.System.VirtualKey.Number0);
+        }
+        else if (sender.Key >= Windows.System.VirtualKey.NumberPad0 && sender.Key <= Windows.System.VirtualKey.NumberPad5)
+        {
+            rating = (int)(sender.Key - Windows.System.VirtualKey.NumberPad0);
+        }
+        SetSelectedImageRating(rating);
+    }
+
+    private void SetSelectedImageRating(int rating)
+    {
+        if (_viewModel?.SelectedImage != null)
+        {
+            _viewModel.SelectedImage.Rating = Math.Clamp(rating, 0, 5);
+        }
     }
 
     private void ToggleSelectedImageFavorite()

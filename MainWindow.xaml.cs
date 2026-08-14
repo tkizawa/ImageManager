@@ -4,6 +4,9 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Text;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using WinRT.Interop;
 using Microsoft.UI;
 
@@ -48,6 +51,9 @@ public partial class MainWindow : Window
         RootGrid.Loaded += RootGrid_Loaded;
         this.Closed += MainWindow_Closed;
 
+        // Handle Keyboard Shortcuts
+        RootGrid.AddHandler(UIElement.KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(RootGrid_KeyDown), true);
+
         // Handle Ctrl + Wheel
         RootGrid.AddHandler(UIElement.PointerWheelChangedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerWheelChanged), true);
         
@@ -91,6 +97,22 @@ public partial class MainWindow : Window
                 {
                     Title = string.IsNullOrEmpty(title) ? e.titleKey : title,
                     Content = string.IsNullOrEmpty(message) ? e.messageKey : message,
+                    CloseButtonText = "OK",
+                    XamlRoot = RootGrid.XamlRoot
+                };
+                await dialog.ShowAsync();
+            }
+            catch { }
+        };
+
+        ViewModel.ShowDirectMessageRequested += async (s, e) =>
+        {
+            try
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = e.title,
+                    Content = e.message,
                     CloseButtonText = "OK",
                     XamlRoot = RootGrid.XamlRoot
                 };
@@ -322,6 +344,311 @@ public partial class MainWindow : Window
             catch (System.Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to open with Photos: {ex.Message}");
+            }
+        }
+    }
+
+    private void ThumbnailGridView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var selectedList = ThumbnailGridView.SelectedItems.OfType<Models.ImageFile>().ToList();
+        ViewModel.UpdateSelectedImages(selectedList);
+    }
+
+    private void Thumbnail_ContextFlyout_Opening(object sender, object e)
+    {
+        if (sender is MenuFlyout flyout && flyout.Target is FrameworkElement element && element.DataContext is Models.ImageFile clickedImage)
+        {
+            if (!ThumbnailGridView.SelectedItems.Contains(clickedImage))
+            {
+                ThumbnailGridView.SelectedItem = clickedImage;
+            }
+        }
+    }
+
+    private async void CopySelected_Click(object sender, RoutedEventArgs e)
+    {
+        await CopySelectedImagesAsync();
+    }
+
+    private async void CutSelected_Click(object sender, RoutedEventArgs e)
+    {
+        await CutSelectedImagesAsync();
+    }
+
+    private async void Paste_Click(object sender, RoutedEventArgs e)
+    {
+        await PasteImagesAsync();
+    }
+
+    private async void CopyToFolder_Click(object sender, RoutedEventArgs e)
+    {
+        await CopySelectedToFolderAsync();
+    }
+
+    private async void MoveToFolder_Click(object sender, RoutedEventArgs e)
+    {
+        await MoveSelectedToFolderAsync();
+    }
+
+    private async void DeleteSelected_Click(object sender, RoutedEventArgs e)
+    {
+        await DeleteSelectedImagesWithConfirmationAsync();
+    }
+
+    private async Task CopySelectedImagesAsync()
+    {
+        var selected = ThumbnailGridView.SelectedItems.OfType<Models.ImageFile>().ToList();
+        if (selected.Count == 0) return;
+
+        ViewModel.CopySelectedToClipboard();
+
+        try
+        {
+            var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dataPackage.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            
+            var storageFiles = new List<Windows.Storage.IStorageItem>();
+            foreach (var img in selected)
+            {
+                if (System.IO.File.Exists(img.FilePath))
+                {
+                    try
+                    {
+                        var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(img.FilePath);
+                        storageFiles.Add(file);
+                    }
+                    catch { }
+                }
+            }
+
+            if (storageFiles.Count > 0)
+            {
+                dataPackage.SetStorageItems(storageFiles);
+            }
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+        }
+        catch { }
+    }
+
+    private async Task CutSelectedImagesAsync()
+    {
+        var selected = ThumbnailGridView.SelectedItems.OfType<Models.ImageFile>().ToList();
+        if (selected.Count == 0) return;
+
+        ViewModel.CutSelectedToClipboard();
+
+        try
+        {
+            var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dataPackage.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            
+            var storageFiles = new List<Windows.Storage.IStorageItem>();
+            foreach (var img in selected)
+            {
+                if (System.IO.File.Exists(img.FilePath))
+                {
+                    try
+                    {
+                        var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(img.FilePath);
+                        storageFiles.Add(file);
+                    }
+                    catch { }
+                }
+            }
+
+            if (storageFiles.Count > 0)
+            {
+                dataPackage.SetStorageItems(storageFiles);
+            }
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+        }
+        catch { }
+    }
+
+    private async Task PasteImagesAsync()
+    {
+        if (string.IsNullOrEmpty(ViewModel.CurrentFolderPath) || !System.IO.Directory.Exists(ViewModel.CurrentFolderPath))
+            return;
+
+        try
+        {
+            var clipContent = Windows.ApplicationModel.DataTransfer.Clipboard.GetContent();
+            if (clipContent != null && clipContent.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
+            {
+                var items = await clipContent.GetStorageItemsAsync();
+                var paths = items.Where(i => i is Windows.Storage.StorageFile).Select(i => i.Path).ToList();
+                if (paths.Count > 0)
+                {
+                    bool isCut = clipContent.RequestedOperation == Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+                    int count = isCut
+                        ? await ViewModel.MoveFilesToFolderAsync(paths, ViewModel.CurrentFolderPath)
+                        : await ViewModel.CopyFilesToFolderAsync(paths, ViewModel.CurrentFolderPath);
+
+                    ShowNotification(isCut ? "MoveSuccessTitle" : "CopySuccessTitle", isCut ? "MoveSuccessMessage" : "CopySuccessMessage", count);
+                    return;
+                }
+            }
+        }
+        catch { }
+
+        if (ViewModel.ClipboardFilePaths.Count > 0)
+        {
+            bool wasCut = ViewModel.IsClipboardCut;
+            int count = await ViewModel.PasteFromClipboardAsync();
+            ShowNotification(wasCut ? "MoveSuccessTitle" : "CopySuccessTitle", wasCut ? "MoveSuccessMessage" : "CopySuccessMessage", count);
+        }
+    }
+
+    private async Task CopySelectedToFolderAsync()
+    {
+        var selected = ThumbnailGridView.SelectedItems.OfType<Models.ImageFile>().Select(i => i.FilePath).ToList();
+        if (selected.Count == 0) return;
+
+        var targetFolder = await ViewModel.FileSystemService.SelectFolderAsync();
+        if (!string.IsNullOrEmpty(targetFolder) && System.IO.Directory.Exists(targetFolder))
+        {
+            int count = await ViewModel.CopyFilesToFolderAsync(selected, targetFolder);
+            ShowNotification("CopySuccessTitle", "CopySuccessMessage", count);
+        }
+    }
+
+    private async Task MoveSelectedToFolderAsync()
+    {
+        var selected = ThumbnailGridView.SelectedItems.OfType<Models.ImageFile>().Select(i => i.FilePath).ToList();
+        if (selected.Count == 0) return;
+
+        var targetFolder = await ViewModel.FileSystemService.SelectFolderAsync();
+        if (!string.IsNullOrEmpty(targetFolder) && System.IO.Directory.Exists(targetFolder))
+        {
+            int count = await ViewModel.MoveFilesToFolderAsync(selected, targetFolder);
+            ShowNotification("MoveSuccessTitle", "MoveSuccessMessage", count);
+        }
+    }
+
+    private async Task DeleteSelectedImagesWithConfirmationAsync()
+    {
+        var selected = ThumbnailGridView.SelectedItems.OfType<Models.ImageFile>().ToList();
+        if (selected.Count == 0) return;
+
+        var resourceLoader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+        string title = resourceLoader.GetString("DeleteConfirmTitle");
+        if (string.IsNullOrEmpty(title)) title = "画像の削除";
+
+        string msgTemplate = resourceLoader.GetString("DeleteConfirmMessage");
+        string msg = string.IsNullOrEmpty(msgTemplate) 
+            ? $"選択した {selected.Count} 件の画像を削除しますか？" 
+            : string.Format(msgTemplate, selected.Count);
+
+        string okText = resourceLoader.GetString("OKText");
+        if (string.IsNullOrEmpty(okText)) okText = "OK";
+        string cancelText = resourceLoader.GetString("CancelText");
+        if (string.IsNullOrEmpty(cancelText)) cancelText = "キャンセル";
+
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = msg,
+            PrimaryButtonText = okText,
+            CloseButtonText = cancelText,
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootGrid.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            int count = await ViewModel.DeleteSelectedImagesAsync();
+            ShowNotification("DeleteSuccessTitle", "DeleteSuccessMessage", count);
+        }
+    }
+
+    private void ShowNotification(string titleKey, string msgKey, int count)
+    {
+        var resourceLoader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+        string title = resourceLoader.GetString(titleKey);
+        string msgFormat = resourceLoader.GetString(msgKey);
+        string msg = string.IsNullOrEmpty(msgFormat) ? $"{count} items processed." : string.Format(msgFormat, count);
+
+        ViewModel.RaiseDirectMessage(string.IsNullOrEmpty(title) ? titleKey : title, msg);
+    }
+
+    private async void RootGrid_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+        bool isCtrlDown = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+        if (isCtrlDown)
+        {
+            if (e.Key == Windows.System.VirtualKey.C)
+            {
+                if (ViewModel.HasAnyImageSelected)
+                {
+                    e.Handled = true;
+                    await CopySelectedImagesAsync();
+                }
+            }
+            else if (e.Key == Windows.System.VirtualKey.X)
+            {
+                if (ViewModel.HasAnyImageSelected)
+                {
+                    e.Handled = true;
+                    await CutSelectedImagesAsync();
+                }
+            }
+            else if (e.Key == Windows.System.VirtualKey.V)
+            {
+                if (ViewModel.CanPaste)
+                {
+                    e.Handled = true;
+                    await PasteImagesAsync();
+                }
+            }
+            else if (e.Key == Windows.System.VirtualKey.A)
+            {
+                var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(RootGrid.XamlRoot);
+                if (focused is not TextBox)
+                {
+                    e.Handled = true;
+                    ThumbnailGridView.SelectAll();
+                }
+            }
+        }
+        else if (e.Key == Windows.System.VirtualKey.Delete)
+        {
+            var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(RootGrid.XamlRoot);
+            if (focused is not TextBox && ViewModel.HasAnyImageSelected)
+            {
+                e.Handled = true;
+                await DeleteSelectedImagesWithConfirmationAsync();
+            }
+        }
+        else if (e.Key == Windows.System.VirtualKey.F)
+        {
+            var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(RootGrid.XamlRoot);
+            if (focused is not TextBox && ViewModel.SelectedImage != null)
+            {
+                e.Handled = true;
+                ViewModel.ToggleFavoriteCommand.Execute(ViewModel.SelectedImage);
+            }
+        }
+        else if (e.Key >= Windows.System.VirtualKey.Number0 && e.Key <= Windows.System.VirtualKey.Number5)
+        {
+            var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(RootGrid.XamlRoot);
+            if (focused is not TextBox && ViewModel.HasAnyImageSelected)
+            {
+                e.Handled = true;
+                int rating = (int)(e.Key - Windows.System.VirtualKey.Number0);
+                ViewModel.SetRatingCommand.Execute(rating);
+            }
+        }
+        else if (e.Key >= Windows.System.VirtualKey.NumberPad0 && e.Key <= Windows.System.VirtualKey.NumberPad5)
+        {
+            var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(RootGrid.XamlRoot);
+            if (focused is not TextBox && ViewModel.HasAnyImageSelected)
+            {
+                e.Handled = true;
+                int rating = (int)(e.Key - Windows.System.VirtualKey.NumberPad0);
+                ViewModel.SetRatingCommand.Execute(rating);
             }
         }
     }
@@ -565,23 +892,32 @@ public partial class MainWindow : Window
                 "【ライブラリタブ】: 複数のフォルダを任意の名前でグループ化して管理。「新規ライブラリ」から作成し、フォルダを追加可能。"
             }));
 
-            stack.Children.Add(CreateHelpSection("🖼️ サムネイル表示とズーム", new[]
+            stack.Children.Add(CreateHelpSection("🖼️ サムネイル表示と選択・ズーム", new[]
             {
                 "【サムネイル表示】: 選択したフォルダ内の画像ファイルをグリッド一覧表示。",
+                "【複数選択】: 「Ctrl + クリック」で複数画像を選択・解除。「Shift + クリック」で範囲選択、「Ctrl + A」で全選択。",
                 "【ズーム操作】: 「Ctrl + マウスホイール」でサムネイルの拡大・縮小が可能。",
                 "【並び替え】: 「更新日」または「撮影日」順、昇順／降順でソート切り替え。"
             }));
 
+            stack.Children.Add(CreateHelpSection("📋 画像のコピー・移動・削除", new[]
+            {
+                "【フォルダへコピー/移動】: ツールバーまたは右クリックメニューから「フォルダへコピー...」「フォルダへ移動...」を選択して一括処理。",
+                "【クリップボード】: 「Ctrl + C（コピー）」「Ctrl + X（切り取り）」「Ctrl + V（貼り付け）」に対応。Windowsエクスプローラーとの相互コピペも可能。",
+                "【削除】: 選択した画像を「Delete」キーまたは右クリック「削除」から削除可能。"
+            }));
+
             stack.Children.Add(CreateHelpSection("🖱️ 右クリック操作", new[]
             {
+                "【コピー/切り取り/貼り付け】: 選択中の画像を一括操作。",
                 "【Windowsのフォトで開く】: Windows標準の「フォト」アプリで全画面閲覧・編集。",
                 "【エクスプローラーで表示】: Windowsのエクスプローラーを起動し、対象ファイルを選択。"
             }));
 
             stack.Children.Add(CreateHelpSection("📊 プレビューとEXIF情報", new[]
             {
-                "【拡大プレビュー】: サムネイルを選択すると画面右側に拡大画像を表示。",
-                "【EXIFメタデータ】: ファイルサイズ・作成日に加え、撮影日、カメラモデル、レンズ、F値、ISO、露出時間を表示。"
+                "【単一選択プレビュー】: 画像を1枚選択すると画面右側に拡大画像とEXIFメタデータを表示。",
+                "【複数選択時】: 複数画像選択時はプレビューを非表示にし、選択件数サマリーと一括操作ボタンを表示。"
             }));
 
             stack.Children.Add(CreateHelpSection("🪟 画像ビュアー (別ウィンドウ)", new[]
@@ -616,23 +952,32 @@ public partial class MainWindow : Window
                 "[Library Tab]: Group and manage multiple folders. Click 'New Library' to create a group and add folders."
             }));
 
-            stack.Children.Add(CreateHelpSection("🖼️ Thumbnails & Zoom", new[]
+            stack.Children.Add(CreateHelpSection("🖼️ Thumbnails & Selection", new[]
             {
                 "[Thumbnails]: Displays all supported image files in the current folder.",
+                "[Multi-Selection]: Hold Ctrl + Click to toggle multiple images. Shift + Click for range selection, Ctrl + A to select all.",
                 "[Zoom]: Press Ctrl + Mouse Wheel over the list to resize thumbnail icons.",
                 "[Sorting]: Sort images by Modified Date or Date Taken (Ascending / Descending)."
             }));
 
+            stack.Children.Add(CreateHelpSection("📋 Copy, Move & Delete", new[]
+            {
+                "[Copy / Move to Folder]: Choose 'Copy to Folder...' or 'Move to Folder...' from toolbar or context menu.",
+                "[Clipboard]: Full support for Ctrl+C (Copy), Ctrl+X (Cut), Ctrl+V (Paste), compatible with Windows Explorer.",
+                "[Delete]: Press Delete key or select Delete from context menu to remove selected images."
+            }));
+
             stack.Children.Add(CreateHelpSection("🖱️ Context Menu", new[]
             {
+                "[Copy / Cut / Paste]: Perform batch operations on selected images.",
                 "[Open with Windows Photos]: Opens the file in default Windows Photos viewer.",
                 "[Show in Explorer]: Opens Windows File Explorer with the selected item highlighted."
             }));
 
             stack.Children.Add(CreateHelpSection("📊 Preview & EXIF Metadata", new[]
             {
-                "[Preview Pane]: Click any thumbnail to preview the image on the right side.",
-                "[EXIF Properties]: View file size, date modified, camera, lens, F-stop, exposure time, ISO, and focal length."
+                "[Preview Pane]: Select 1 image to preview and view EXIF metadata.",
+                "[Multi-Selection]: Preview is hidden when multiple items are selected, showing selection summary instead."
             }));
 
             stack.Children.Add(CreateHelpSection("🪟 Image Viewer (Separate Window)", new[]

@@ -251,24 +251,56 @@
                 <ComboBox SelectedIndex="{Binding SortFieldIndex, Mode=TwoWay}" Width="120" Margin="0,0,10,0">
                     <ComboBoxItem x:Uid="SortModifiedDate" />
                     <ComboBoxItem x:Uid="SortTakenDate" />
+                    <ComboBoxItem x:Uid="SortRating" Content="レート" />
                 </ComboBox>
                 <ComboBox SelectedIndex="{Binding SortDirectionIndex, Mode=TwoWay}" Width="100" Margin="0,0,15,0">
                     <ComboBoxItem x:Uid="SortAscending" />
                     <ComboBoxItem x:Uid="SortDescending" />
                 </ComboBox>
 
-                <ToggleButton IsChecked="{Binding ShowOnlyFavorites, Mode=TwoWay}" Padding="8,4">
+                <ToggleButton IsChecked="{Binding ShowOnlyFavorites, Mode=TwoWay}" Padding="8,4" Margin="0,0,10,0">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="14"/>
                         <TextBlock x:Uid="ShowOnlyFavoritesText" Text="お気に入りのみ" />
                     </StackPanel>
                 </ToggleButton>
+
+                <ComboBox SelectedIndex="{Binding RatingFilterIndex, Mode=TwoWay}" Width="145" Margin="0,0,15,0" ToolTipService.ToolTip="指定したレートの写真のみ表示">
+                    <ComboBoxItem x:Uid="RatingFilterAll" Content="すべてのレート" />
+                    <ComboBoxItem x:Uid="RatingFilterStar1" Content="★1 (★☆☆☆☆)" />
+                    <ComboBoxItem x:Uid="RatingFilterStar2" Content="★2 (★★☆☆☆)" />
+                    <ComboBoxItem x:Uid="RatingFilterStar3" Content="★3 (★★★☆☆)" />
+                    <ComboBoxItem x:Uid="RatingFilterStar4" Content="★4 (★★★★☆)" />
+                    <ComboBoxItem x:Uid="RatingFilterStar5" Content="★5 (★★★★★)" />
+                    <ComboBoxItem x:Uid="RatingFilterNone" Content="レートなし" />
+                </ComboBox>
+
+                <!-- Copy / Move / Paste Toolbar Actions -->
+                <Button x:Name="ToolbarCopyButton" Click="CopySelected_Click" IsEnabled="{Binding HasAnyImageSelected}" Padding="8,4" Margin="0,0,5,0" ToolTipService.ToolTip="選択した画像をコピー (Ctrl+C)">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <FontIcon Glyph="&#xE8C8;" FontSize="13"/>
+                        <TextBlock Text="コピー" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="ToolbarMoveButton" Click="MoveToFolder_Click" IsEnabled="{Binding HasAnyImageSelected}" Padding="8,4" Margin="0,0,5,0" ToolTipService.ToolTip="選択した画像を別のフォルダへ移動...">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <FontIcon Glyph="&#xE8DE;" FontSize="13"/>
+                        <TextBlock Text="移動..." />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="ToolbarPasteButton" Click="Paste_Click" IsEnabled="{Binding CanPaste}" Padding="8,4" ToolTipService.ToolTip="クリップボードから貼り付け (Ctrl+V)">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <FontIcon Glyph="&#xE77F;" FontSize="13"/>
+                        <TextBlock Text="貼り付け" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <!-- Thumbnail Grid -->
             <GridView Grid.Row="1" x:Name="ThumbnailGridView"
                       ItemsSource="{Binding Images}" 
-                      SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
+                      SelectionMode="Extended"
+                      SelectionChanged="ThumbnailGridView_SelectionChanged"
                       DoubleTapped="ThumbnailGridView_DoubleTapped"
                       Padding="5">
                 <GridView.ItemTemplate>
@@ -279,13 +311,52 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <Grid.ContextFlyout>
-                                <MenuFlyout>
+                                <MenuFlyout Opening="Thumbnail_ContextFlyout_Opening">
                                     <MenuFlyoutItem x:Uid="ToggleFavoriteMenu" 
                                                     Command="{Binding DataContext.ToggleFavoriteCommand, ElementName=RootGrid}" 
                                                     CommandParameter="{Binding}">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="{Binding IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
                                                       Foreground="{Binding IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSubItem x:Uid="SetRatingMenu" Text="レートを設定">
+                                        <MenuFlyoutSubItem.Icon>
+                                            <FontIcon Glyph="&#xE735;" Foreground="#FFC107" />
+                                        </MenuFlyoutSubItem.Icon>
+                                        <MenuFlyoutItem Text="レートなし (0)" Command="{Binding DataContext.SetRatingCommand, ElementName=RootGrid}" CommandParameter="0" />
+                                        <MenuFlyoutSeparator />
+                                        <MenuFlyoutItem Text="★ 1 (1)" Command="{Binding DataContext.SetRatingCommand, ElementName=RootGrid}" CommandParameter="1" />
+                                        <MenuFlyoutItem Text="★ 2 (2)" Command="{Binding DataContext.SetRatingCommand, ElementName=RootGrid}" CommandParameter="2" />
+                                        <MenuFlyoutItem Text="★ 3 (3)" Command="{Binding DataContext.SetRatingCommand, ElementName=RootGrid}" CommandParameter="3" />
+                                        <MenuFlyoutItem Text="★ 4 (4)" Command="{Binding DataContext.SetRatingCommand, ElementName=RootGrid}" CommandParameter="4" />
+                                        <MenuFlyoutItem Text="★ 5 (5)" Command="{Binding DataContext.SetRatingCommand, ElementName=RootGrid}" CommandParameter="5" />
+                                    </MenuFlyoutSubItem>
+                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutItem x:Uid="CopyMenu" Click="CopySelected_Click">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE8C8;"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Uid="CutMenu" Click="CutSelected_Click">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE8C6;"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Uid="CopyToFolderMenu" Click="CopyToFolder_Click">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xF413;"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Uid="MoveToFolderMenu" Click="MoveToFolder_Click">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE8DE;"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutItem x:Uid="DeleteMenu" Click="DeleteSelected_Click">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE74D;"/>
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
                                     <MenuFlyoutSeparator />
@@ -300,6 +371,20 @@
                                        Height="{Binding DataContext.ThumbnailSize, ElementName=RootGrid}" 
                                        Stretch="Uniform" />
 
+                                <!-- Rating Badge on Thumbnail -->
+                                <Border HorizontalAlignment="Left" 
+                                        VerticalAlignment="Top" 
+                                        Margin="2" 
+                                        Padding="4,2" 
+                                        Background="#C0000000" 
+                                        CornerRadius="4" 
+                                        Visibility="{Binding Rating, Converter={StaticResource RatingToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="10"/>
+                                        <TextBlock Text="{Binding Rating}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <Button Command="{Binding DataContext.ToggleFavoriteCommand, ElementName=RootGrid}" 
                                         CommandParameter="{Binding}" 
                                         HorizontalAlignment="Right" 
@@ -307,7 +392,7 @@
                                         Margin="2" 
                                         Padding="4" 
                                         Background="#A0000000" 
-                                        BorderThickness="0"
+                                        BorderThickness="0" 
                                         CornerRadius="12" 
                                         ToolTipService.ToolTip="お気に入りの切り替え">
                                     <FontIcon Glyph="{Binding IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
@@ -329,98 +414,201 @@
         <!-- Preview and Properties -->
         <Border Grid.Row="1" Grid.Column="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="10">
             <ScrollViewer>
-                <StackPanel>
-                    <TextBlock x:Uid="PreviewText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
-                    <Grid Margin="0,0,0,20">
-                        <Image Source="{Binding SelectedImage.FilePath, Converter={StaticResource StringToImageSourceConverter}}" MaxHeight="300" Stretch="Uniform" />
-                        <Button Command="{Binding ToggleFavoriteCommand}" 
-                                CommandParameter="{Binding SelectedImage}" 
-                                HorizontalAlignment="Right" 
-                                VerticalAlignment="Top" 
-                                Margin="8" 
-                                Padding="6" 
-                                Background="#B0000000" 
-                                BorderThickness="0"
-                                CornerRadius="16" 
-                                Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}"
-                                ToolTipService.ToolTip="お気に入りの切り替え">
-                            <FontIcon Glyph="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
-                                      Foreground="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" 
-                                      FontSize="16" />
-                        </Button>
-                    </Grid>
-                    
-                    <TextBlock x:Uid="PropertiesText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" x:Uid="FileNameText" FontWeight="SemiBold" Margin="0,0,10,5" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedImage.FileName}" TextWrapping="Wrap" Margin="0,0,0,5" />
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" x:Uid="FileSizeText" FontWeight="SemiBold" Margin="0,0,10,5" />
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedImage.FileSize}" Margin="0,0,0,5" />
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" x:Uid="FileModifiedDateText" FontWeight="SemiBold" Margin="0,0,10,5" />
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedImage.LastWriteTime}" Margin="0,0,0,5" />
+                <Grid>
+                    <!-- 1件選択時: プレビュー画像 & EXIFプロパティ表示 -->
+                    <StackPanel Visibility="{Binding IsSingleImageSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock x:Uid="PreviewText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
+                        <Grid Margin="0,0,0,20">
+                            <Image Source="{Binding SelectedImage.FilePath, Converter={StaticResource StringToImageSourceConverter}}" MaxHeight="300" Stretch="Uniform" />
+                            <Button Command="{Binding ToggleFavoriteCommand}" 
+                                    CommandParameter="{Binding SelectedImage}" 
+                                    HorizontalAlignment="Right" 
+                                    VerticalAlignment="Top" 
+                                    Margin="8" 
+                                    Padding="6" 
+                                    Background="#B0000000" 
+                                    BorderThickness="0" 
+                                    CornerRadius="16" 
+                                    Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}" 
+                                    ToolTipService.ToolTip="お気に入りの切り替え">
+                                <FontIcon Glyph="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
+                                          Foreground="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" 
+                                          FontSize="16" />
+                            </Button>
+                        </Grid>
                         
-                        <!-- EXIF Info -->
-                        <TextBlock Grid.Row="3" Grid.Column="0" x:Uid="DateTakenText" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedImage.DateTaken}" Margin="0,10,0,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <TextBlock x:Uid="PropertiesText" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" x:Uid="CameraText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedImage.CameraModel}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="0" Grid.Column="0" x:Uid="FileNameText" FontWeight="SemiBold" Margin="0,0,10,5" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedImage.FileName}" TextWrapping="Wrap" Margin="0,0,0,5" />
 
-                        <TextBlock Grid.Row="5" Grid.Column="0" x:Uid="LensText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedImage.Lens}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" x:Uid="FileSizeText" FontWeight="SemiBold" Margin="0,0,10,5" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedImage.FileSize}" Margin="0,0,0,5" />
 
-                        <TextBlock Grid.Row="6" Grid.Column="0" x:Uid="FNumberText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedImage.FNumber}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" x:Uid="FileModifiedDateText" FontWeight="SemiBold" Margin="0,0,10,5" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedImage.LastWriteTime}" Margin="0,0,0,5" />
+                            
+                            <!-- EXIF Info -->
+                            <TextBlock Grid.Row="3" Grid.Column="0" x:Uid="DateTakenText" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedImage.DateTaken}" Margin="0,10,0,5" Visibility="{Binding SelectedImage.DateTaken, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                        <TextBlock Grid.Row="7" Grid.Column="0" x:Uid="ExposureTimeText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedImage.ExposureTime}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="4" Grid.Column="0" x:Uid="CameraText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedImage.CameraModel}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.CameraModel, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                        <TextBlock Grid.Row="8" Grid.Column="0" x:Uid="IsoText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedImage.IsoSpeed}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="5" Grid.Column="0" x:Uid="LensText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedImage.Lens}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.Lens, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                            <TextBlock Grid.Row="6" Grid.Column="0" x:Uid="FNumberText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedImage.FNumber}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FNumber, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                            <TextBlock Grid.Row="7" Grid.Column="0" x:Uid="ExposureTimeText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedImage.ExposureTime}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.ExposureTime, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                            <TextBlock Grid.Row="8" Grid.Column="0" x:Uid="IsoText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedImage.IsoSpeed}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.IsoSpeed, Converter={StaticResource StringToVisibilityConverter}}" />
+                            
+                            <TextBlock Grid.Row="9" Grid.Column="0" x:Uid="FocalLengthText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedImage.FocalLength}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                            <TextBlock Grid.Row="10" Grid.Column="0" Text="カテゴリー:" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.Category, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding SelectedImage.Category}" Margin="0,10,0,5" FontWeight="Bold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{Binding SelectedImage.Category, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                            <TextBlock Grid.Row="11" Grid.Column="0" x:Uid="FavoriteLabelText" Text="お気に入り:" FontWeight="SemiBold" Margin="0,10,10,5" VerticalAlignment="Center" Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <Button Grid.Row="11" Grid.Column="1" 
+                                    Command="{Binding ToggleFavoriteCommand}" 
+                                    CommandParameter="{Binding SelectedImage}" 
+                                    Padding="6,4" Margin="0,10,0,5" 
+                                    HorizontalAlignment="Left" 
+                                    Background="Transparent" 
+                                    BorderThickness="0" 
+                                    Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}" 
+                                    ToolTipService.ToolTip="お気に入りの切り替え (F)">
+                                <FontIcon Glyph="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
+                                          Foreground="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" 
+                                          FontSize="18" />
+                            </Button>
+
+                            <!-- Rating Row -->
+                            <TextBlock Grid.Row="12" Grid.Column="0" x:Uid="RatingLabelText" Text="レート:" FontWeight="SemiBold" Margin="0,10,10,5" VerticalAlignment="Center" Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}" />
+                            <StackPanel Grid.Row="12" Grid.Column="1" Orientation="Horizontal" Spacing="2" Margin="0,10,0,5" VerticalAlignment="Center" Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}">
+                                <Button Command="{Binding ToggleStarRatingCommand}" CommandParameter="1" Padding="2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="★ 1 (キー: 1)">
+                                    <FontIcon Glyph="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarGlyphConverter}, ConverterParameter='1'}" 
+                                              Foreground="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarBrushConverter}, ConverterParameter='1'}" 
+                                              FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding ToggleStarRatingCommand}" CommandParameter="2" Padding="2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="★ 2 (キー: 2)">
+                                    <FontIcon Glyph="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarGlyphConverter}, ConverterParameter='2'}" 
+                                              Foreground="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarBrushConverter}, ConverterParameter='2'}" 
+                                              FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding ToggleStarRatingCommand}" CommandParameter="3" Padding="2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="★ 3 (キー: 3)">
+                                    <FontIcon Glyph="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarGlyphConverter}, ConverterParameter='3'}" 
+                                              Foreground="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarBrushConverter}, ConverterParameter='3'}" 
+                                              FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding ToggleStarRatingCommand}" CommandParameter="4" Padding="2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="★ 4 (キー: 4)">
+                                    <FontIcon Glyph="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarGlyphConverter}, ConverterParameter='4'}" 
+                                              Foreground="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarBrushConverter}, ConverterParameter='4'}" 
+                                              FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding ToggleStarRatingCommand}" CommandParameter="5" Padding="2" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="★ 5 (キー: 5)">
+                                    <FontIcon Glyph="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarGlyphConverter}, ConverterParameter='5'}" 
+                                              Foreground="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarBrushConverter}, ConverterParameter='5'}" 
+                                              FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding SetRatingCommand}" CommandParameter="0" Padding="4,2" Margin="6,0,0,0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="レート解除 (キー: 0)" Visibility="{Binding SelectedImage.Rating, Converter={StaticResource RatingToVisibilityConverter}}">
+                                    <FontIcon Glyph="&#xE711;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Button>
+                                <TextBlock Text="{Binding SelectedImage.Rating, Converter={StaticResource RatingToStarsConverter}, ConverterParameter='text'}" VerticalAlignment="Center" Margin="6,0,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- 複数選択時: プレビュー非表示 & 複数選択サマリーカード表示 -->
+                    <StackPanel Visibility="{Binding HasMultipleImagesSelected, Converter={StaticResource BoolToVisibilityConverter}}" Spacing="16" Margin="0,20,0,0" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE8B9;" FontSize="48" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding MultiSelectionSummary}" FontWeight="Bold" FontSize="16" TextAlignment="Center"/>
+                        <TextBlock Text="※複数選択中はプレビューを非表示にしています。" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextAlignment="Center"/>
                         
-                        <TextBlock Grid.Row="9" Grid.Column="0" x:Uid="FocalLengthText" FontWeight="SemiBold" Margin="0,0,10,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedImage.FocalLength}" Margin="0,0,0,5" Visibility="{Binding SelectedImage.FocalLength, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <!-- 複数選択時の一括レート設定 -->
+                        <StackPanel Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="一括レート設定:" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                <Button Command="{Binding SetRatingCommand}" CommandParameter="1" Padding="4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="選択した全画像に ★ 1 を設定">
+                                    <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding SetRatingCommand}" CommandParameter="2" Padding="4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="選択した全画像に ★ 2 を設定">
+                                    <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding SetRatingCommand}" CommandParameter="3" Padding="4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="選択した全画像に ★ 3 を設定">
+                                    <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding SetRatingCommand}" CommandParameter="4" Padding="4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="選択した全画像に ★ 4 を設定">
+                                    <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding SetRatingCommand}" CommandParameter="5" Padding="4" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="選択した全画像に ★ 5 を設定">
+                                    <FontIcon Glyph="&#xE735;" Foreground="#FFC107" FontSize="16"/>
+                                </Button>
+                                <Button Command="{Binding SetRatingCommand}" CommandParameter="0" Padding="4" Margin="4,0,0,0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="選択した全画像のレートを解除">
+                                    <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
 
-                        <TextBlock Grid.Row="10" Grid.Column="0" Text="カテゴリー:" FontWeight="SemiBold" Margin="0,10,10,5" Visibility="{Binding SelectedImage.Category, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding SelectedImage.Category}" Margin="0,10,0,5" FontWeight="Bold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{Binding SelectedImage.Category, Converter={StaticResource StringToVisibilityConverter}}" />
+                        <StackPanel Spacing="10" Margin="0,10,0,0" Width="200">
+                            <Button Click="CopyToFolder_Click" HorizontalAlignment="Stretch" Padding="10,6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xF413;" FontSize="14"/>
+                                    <TextBlock Text="フォルダへコピー..." />
+                                </StackPanel>
+                            </Button>
+                            <Button Click="MoveToFolder_Click" HorizontalAlignment="Stretch" Padding="10,6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE8DE;" FontSize="14"/>
+                                    <TextBlock Text="フォルダへ移動..." />
+                                </StackPanel>
+                            </Button>
+                            <Button Click="CopySelected_Click" HorizontalAlignment="Stretch" Padding="10,6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE8C8;" FontSize="14"/>
+                                    <TextBlock Text="クリップボードにコピー" />
+                                </StackPanel>
+                            </Button>
+                            <Button Click="DeleteSelected_Click" HorizontalAlignment="Stretch" Padding="10,6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="Red"/>
+                                    <TextBlock Text="選択した画像を削除" Foreground="Red"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
 
-                        <TextBlock Grid.Row="11" Grid.Column="0" x:Uid="FavoriteLabelText" Text="お気に入り:" FontWeight="SemiBold" Margin="0,10,10,5" VerticalAlignment="Center" Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}" />
-                        <Button Grid.Row="11" Grid.Column="1" 
-                                Command="{Binding ToggleFavoriteCommand}" 
-                                CommandParameter="{Binding SelectedImage}" 
-                                Padding="6,4" Margin="0,10,0,5" 
-                                HorizontalAlignment="Left" 
-                                Background="Transparent" 
-                                BorderThickness="0"
-                                Visibility="{Binding SelectedImage, Converter={StaticResource StringToVisibilityConverter}}"
-                                ToolTipService.ToolTip="お気に入りの切り替え">
-                            <FontIcon Glyph="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarGlyphConverter}}" 
-                                      Foreground="{Binding SelectedImage.IsFavorite, Converter={StaticResource BoolToStarBrushConverter}}" 
-                                      FontSize="18" />
-                        </Button>
-                    </Grid>
-                </StackPanel>
+                    <!-- 未選択時 -->
+                    <StackPanel Visibility="{Binding HasAnyImageSelected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter='Invert'}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,50,0,0">
+                        <FontIcon Glyph="&#xEB9F;" FontSize="40" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="画像が選択されていません" Margin="0,10,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
             </ScrollViewer>
         </Border>
     </Grid>
