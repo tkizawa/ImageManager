@@ -897,7 +897,15 @@ public partial class MainWindow : Window
                 "【サムネイル表示】: 選択したフォルダ内の画像ファイルをグリッド一覧表示。",
                 "【複数選択】: 「Ctrl + クリック」で複数画像を選択・解除。「Shift + クリック」で範囲選択、「Ctrl + A」で全選択。",
                 "【ズーム操作】: 「Ctrl + マウスホイール」でサムネイルの拡大・縮小が可能。",
-                "【並び替え】: 「更新日」または「撮影日」順、昇順／降順でソート切り替え。"
+                "【並び替え】: 「更新日」「撮影日」「レート」順、昇順／降順でソート切り替え。"
+            }));
+
+            stack.Children.Add(CreateHelpSection("⭐ お気に入り・レート機能と絞り込み", new[]
+            {
+                "【お気に入りの設定】: サムネイル右上の星アイコン、右クリック「お気に入りの切り替え」、またはビュアー表示中に「F」キーでON/OFFを切り替え。",
+                "【レートの設定 (★1～5)】: 右ペインの星ボタン、右クリック「レートを設定」、キーボードの「0」～「5」キー（テンキー対応）で瞬時に設定・解除。複数選択時の一括設定にも対応。",
+                "【レートフィルター】: ツールバーのドロップダウンから指定したレート（★1～★5、レートなし、すべて）の写真のみを抽出表示。",
+                "【お気に入りとのAND条件】: 「お気に入りのみ」ボタンと「レートフィルター」を併用すると、お気に入り かつ 指定レート の両方を満たす写真のみを絞り込み表示。"
             }));
 
             stack.Children.Add(CreateHelpSection("📋 画像のコピー・移動・削除", new[]
@@ -909,6 +917,8 @@ public partial class MainWindow : Window
 
             stack.Children.Add(CreateHelpSection("🖱️ 右クリック操作", new[]
             {
+                "【レートを設定】: ★1～5およびレートなしをサブメニューから指定。",
+                "【お気に入りの切り替え】: 選択画像のブックマーク登録・解除。",
                 "【コピー/切り取り/貼り付け】: 選択中の画像を一括操作。",
                 "【Windowsのフォトで開く】: Windows標準の「フォト」アプリで全画面閲覧・編集。",
                 "【エクスプローラーで表示】: Windowsのエクスプローラーを起動し、対象ファイルを選択。"
@@ -916,8 +926,8 @@ public partial class MainWindow : Window
 
             stack.Children.Add(CreateHelpSection("📊 プレビューとEXIF情報", new[]
             {
-                "【単一選択プレビュー】: 画像を1枚選択すると画面右側に拡大画像とEXIFメタデータを表示。",
-                "【複数選択時】: 複数画像選択時はプレビューを非表示にし、選択件数サマリーと一括操作ボタンを表示。"
+                "【単一選択プレビュー】: 画像を1枚選択すると画面右側に拡大画像、星レート操作UI、およびEXIFメタデータを表示。",
+                "【複数選択時】: 複数画像選択時はプレビューを非表示にし、選択件数サマリーと一括レート設定・操作ボタンを表示。"
             }));
 
             stack.Children.Add(CreateHelpSection("🪟 画像ビュアー (別ウィンドウ)", new[]
@@ -926,7 +936,8 @@ public partial class MainWindow : Window
                 "【画像切り替え】: 左右のカーソルキー、またはマウスのホイール。",
                 "【拡大縮小】: Ctrlキーを押しながらマウスのホイール。",
                 "【移動】: マウスのドラッグアンドドロップで画像表示を移動。",
-                "【情報表示の切り替え】: 右クリックメニュー、または I キーで写真情報の表示・非表示を切り替え。",
+                "【お気に入り/レート操作】: 「F」キーでお気に入り切り替え、「0」～「5」キーでレート設定（右クリックメニューからも可能）。",
+                "【情報表示の切り替え】: 右クリックメニュー、または「I」キーで写真情報（ファイル名・撮影日・お気に入り・レート・EXIF等）の表示・非表示を切り替え。",
                 "【閉じる】: Escキー。"
             }));
 
@@ -939,7 +950,7 @@ public partial class MainWindow : Window
             stack.Children.Add(CreateHelpSection("⚙️ 設定のインポート / エクスポート", new[]
             {
                 "【設定メニュー】: 画面左上の「設定（歯車）」ボタンからドロップダウンメニューを開きます。",
-                "【バックアップ・復元】: 「設定のエクスポート...」「設定のインポート...」でお気に入りや履歴をファイルとして保存・復元。"
+                "【バックアップ・復元】: 「設定のエクスポート...」「設定のインポート...」でお気に入りや履歴、データベースをファイルとして保存・復元。"
             }));
         }
         else
@@ -957,7 +968,15 @@ public partial class MainWindow : Window
                 "[Thumbnails]: Displays all supported image files in the current folder.",
                 "[Multi-Selection]: Hold Ctrl + Click to toggle multiple images. Shift + Click for range selection, Ctrl + A to select all.",
                 "[Zoom]: Press Ctrl + Mouse Wheel over the list to resize thumbnail icons.",
-                "[Sorting]: Sort images by Modified Date or Date Taken (Ascending / Descending)."
+                "[Sorting]: Sort images by Modified Date, Date Taken, or Rating (Ascending / Descending)."
+            }));
+
+            stack.Children.Add(CreateHelpSection("⭐ Favorites & Rating Filtering", new[]
+            {
+                "[Favorite Flag]: Click the star icon on thumbnail top-right, use context menu, or press 'F' in viewer window.",
+                "[Rating (★1-5)]: Click stars in properties pane, use context menu, or press '0' to '5' keys. Supports batch rating for multiple selected images.",
+                "[Rating Filter]: Filter images by specific star rating (★1 to ★5, No Rating, or All) from toolbar dropdown.",
+                "[AND Condition]: When both 'Show Favorites' and 'Rating Filter' are enabled, only images matching BOTH conditions are displayed."
             }));
 
             stack.Children.Add(CreateHelpSection("📋 Copy, Move & Delete", new[]
@@ -969,6 +988,8 @@ public partial class MainWindow : Window
 
             stack.Children.Add(CreateHelpSection("🖱️ Context Menu", new[]
             {
+                "[Set Rating]: Set rating from ★1 to ★5 or clear rating.",
+                "[Toggle Favorite]: Bookmark or unbookmark selected image.",
                 "[Copy / Cut / Paste]: Perform batch operations on selected images.",
                 "[Open with Windows Photos]: Opens the file in default Windows Photos viewer.",
                 "[Show in Explorer]: Opens Windows File Explorer with the selected item highlighted."
@@ -976,8 +997,8 @@ public partial class MainWindow : Window
 
             stack.Children.Add(CreateHelpSection("📊 Preview & EXIF Metadata", new[]
             {
-                "[Preview Pane]: Select 1 image to preview and view EXIF metadata.",
-                "[Multi-Selection]: Preview is hidden when multiple items are selected, showing selection summary instead."
+                "[Preview Pane]: Select 1 image to preview, adjust star rating, and view EXIF metadata.",
+                "[Multi-Selection]: Preview is hidden when multiple items are selected, showing selection summary and batch rating controls instead."
             }));
 
             stack.Children.Add(CreateHelpSection("🪟 Image Viewer (Separate Window)", new[]
@@ -986,7 +1007,8 @@ public partial class MainWindow : Window
                 "[Navigate]: Left/Right arrow keys, or mouse wheel.",
                 "[Zoom]: Hold Ctrl + Mouse wheel.",
                 "[Pan]: Mouse drag and drop to move the image.",
-                "[Toggle Info]: Right-click context menu, or press 'I' key to show/hide photo info.",
+                "[Favorite & Rating]: Press 'F' to toggle favorite, '0'-'5' to set rating.",
+                "[Toggle Info]: Right-click context menu, or press 'I' key to show/hide photo info overlay.",
                 "[Close]: Esc key."
             }));
 
@@ -999,7 +1021,7 @@ public partial class MainWindow : Window
             stack.Children.Add(CreateHelpSection("⚙️ Import / Export Settings", new[]
             {
                 "[Settings Menu]: Click the gear icon in the top header bar to access setting actions.",
-                "[Backup & Restore]: Export or import your user settings (Favorites & History) as a JSON file."
+                "[Backup & Restore]: Export or import your user settings and database as a backup file."
             }));
         }
 
