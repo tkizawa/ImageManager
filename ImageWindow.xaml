@@ -7,7 +7,10 @@
     xmlns:local="using:ImageManager"
     mc:Ignorable="d">
 
-    <Grid x:Name="RootGrid" Background="#1E1E1E">
+    <Grid x:Name="RootGrid" 
+          Background="#1E1E1E" 
+          KeyboardAcceleratorPlacementMode="Hidden"
+          ToolTipService.ToolTip="右クリックで画像情報の表示・非表示の切り替え">
         <Grid.ContextFlyout>
             <MenuFlyout>
                 <ToggleMenuFlyoutItem x:Name="ToggleInfoMenuItem" 

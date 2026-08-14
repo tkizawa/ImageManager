@@ -26,13 +26,13 @@ if (-not (Test-Path $targetDir)) {
     New-Item -ItemType Directory -Path $targetDir | Out-Null
 }
 
-$x64Msix = Get-ChildItem -Path "$PSScriptRoot\bin\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages" -Recurse -Filter "*.msix" | Select-Object -First 1
+$x64Msix = Get-ChildItem -Path "$PSScriptRoot\bin\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages" -Recurse -Filter "*.msix" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if ($x64Msix) {
     Copy-Item -Path $x64Msix.FullName -Destination $targetDir -Force
     Write-Host "Copied x64 MSIX -> $targetDir\$($x64Msix.Name)" -ForegroundColor Yellow
 }
 
-$arm64Msix = Get-ChildItem -Path "$PSScriptRoot\bin\Release\net10.0-windows10.0.19041.0\win-arm64\AppPackages" -Recurse -Filter "*.msix" | Select-Object -First 1
+$arm64Msix = Get-ChildItem -Path "$PSScriptRoot\bin\Release\net10.0-windows10.0.19041.0\win-arm64\AppPackages" -Recurse -Filter "*.msix" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if ($arm64Msix) {
     Copy-Item -Path $arm64Msix.FullName -Destination $targetDir -Force
     Write-Host "Copied ARM64 MSIX -> $targetDir\$($arm64Msix.Name)" -ForegroundColor Yellow

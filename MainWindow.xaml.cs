@@ -590,6 +590,7 @@ public partial class MainWindow : Window
                 "【画像切り替え】: 左右のカーソルキー、またはマウスのホイール。",
                 "【拡大縮小】: Ctrlキーを押しながらマウスのホイール。",
                 "【移動】: マウスのドラッグアンドドロップで画像表示を移動。",
+                "【情報表示の切り替え】: 右クリックメニュー、または I キーで写真情報の表示・非表示を切り替え。",
                 "【閉じる】: Escキー。"
             }));
 
@@ -640,6 +641,7 @@ public partial class MainWindow : Window
                 "[Navigate]: Left/Right arrow keys, or mouse wheel.",
                 "[Zoom]: Hold Ctrl + Mouse wheel.",
                 "[Pan]: Mouse drag and drop to move the image.",
+                "[Toggle Info]: Right-click context menu, or press 'I' key to show/hide photo info.",
                 "[Close]: Esc key."
             }));
 
