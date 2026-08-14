@@ -207,6 +207,14 @@
                                                             <FontIcon Glyph="&#xE74D;"/>
                                                         </MenuFlyoutItem.Icon>
                                                     </MenuFlyoutItem>
+                                                    <MenuFlyoutItem x:Name="RelocateFolderMenuItem"
+                                                                    x:Uid="RelocateFolderMenu" 
+                                                                    Click="RelocateFolder_Click" 
+                                                                    Tag="{Binding}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE8E5;"/>
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
                                                     <MenuFlyoutItem x:Name="RemoveFolderMenuItem"
                                                                     x:Uid="RemoveFromLibraryMenu" 
                                                                     Click="RemoveFolderFromLibrary_Click" 

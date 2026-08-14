@@ -13,10 +13,12 @@ namespace ImageManager.ViewModels
         private readonly IFileSystemService _fileSystemService;
         private readonly ISettingsService _settingsService;
 
+        public IFileSystemService FileSystemService => _fileSystemService;
+
         [ObservableProperty]
         private string _currentFolderPath = string.Empty;
 
-        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.11.0"}";
+        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.0.0"}";
 
         [ObservableProperty]
         private ObservableCollection<ImageFile> _images = new();
@@ -462,6 +464,16 @@ namespace ImageManager.ViewModels
                 var files = _fileSystemService.GetImageFiles(folderPath).ToList();
                 var newImages = files.Select(f => new ImageFile(f)).ToList();
                 
+                string libId = "folder_" + folderPath.GetHashCode();
+                foreach (var img in newImages)
+                {
+                    try
+                    {
+                        DatabaseService.Instance.SyncImageRecord(img, libId, folderPath);
+                    }
+                    catch { }
+                }
+
                 if (SortFieldIndex == 0) // LastWriteTime
                 {
                     if (SortDirectionIndex == 0) // Ascending
@@ -744,6 +756,11 @@ namespace ImageManager.ViewModels
         public void DeleteLibrary(LibraryNodeViewModel libraryNode)
         {
             if (libraryNode == null || !libraryNode.IsLibrary) return;
+            try
+            {
+                DatabaseService.Instance.DeleteLibrary(libraryNode.Id);
+            }
+            catch { }
             Libraries.Remove(libraryNode);
             SaveLibrariesToSettings();
         }
@@ -800,6 +817,39 @@ namespace ImageManager.ViewModels
                 FolderPaths = lib.Children.Select(c => c.FullPath).ToList()
             }).ToList();
             _settingsService.Save(settings);
+
+            foreach (var lib in Libraries)
+            {
+                try
+                {
+                    DatabaseService.Instance.UpsertLibrary(lib.Id, lib.Name, lib.FullPath ?? string.Empty);
+                }
+                catch { }
+            }
+        }
+
+        public async Task<bool> RelocateLibraryFolderAsync(LibraryNodeViewModel folderNode, string newFolderPath)
+        {
+            if (folderNode == null || string.IsNullOrWhiteSpace(newFolderPath) || !System.IO.Directory.Exists(newFolderPath))
+                return false;
+
+            string oldPath = folderNode.FullPath;
+            string newFolderName = System.IO.Path.GetFileName(newFolderPath.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(newFolderName)) newFolderName = newFolderPath;
+
+            folderNode.FullPath = newFolderPath;
+            folderNode.Name = newFolderName;
+
+            try
+            {
+                DatabaseService.Instance.RelocateFolderPath(oldPath, newFolderPath);
+            }
+            catch { }
+
+            SaveLibrariesToSettings();
+
+            await SelectFolderFromTreeAsync(newFolderPath);
+            return true;
         }
     }
 }

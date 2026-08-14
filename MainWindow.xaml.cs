@@ -743,7 +743,14 @@ public partial class MainWindow : Window
         {
             if (!node.IsLibrary && !string.IsNullOrEmpty(node.FullPath))
             {
-                await ViewModel.SelectFolderFromTreeAsync(node.FullPath);
+                if (!System.IO.Directory.Exists(node.FullPath))
+                {
+                    await PromptRelocateLibraryFolderAsync(node);
+                }
+                else
+                {
+                    await ViewModel.SelectFolderFromTreeAsync(node.FullPath);
+                }
             }
         }
     }
@@ -760,11 +767,46 @@ public partial class MainWindow : Window
                     {
                         menuItem.Visibility = node.IsLibrary ? Visibility.Visible : Visibility.Collapsed;
                     }
-                    else if (menuItem.Name == "RemoveFolderMenuItem")
+                    else if (menuItem.Name == "RemoveFolderMenuItem" || menuItem.Name == "RelocateFolderMenuItem")
                     {
                         menuItem.Visibility = node.IsTopLevelFolder ? Visibility.Visible : Visibility.Collapsed;
                     }
                 }
+            }
+        }
+    }
+
+    private async void RelocateFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element && element.Tag is ViewModels.LibraryNodeViewModel node)
+        {
+            await PromptRelocateLibraryFolderAsync(node);
+        }
+    }
+
+    private async System.Threading.Tasks.Task PromptRelocateLibraryFolderAsync(ViewModels.LibraryNodeViewModel node)
+    {
+        var isJa = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("ja", StringComparison.OrdinalIgnoreCase);
+
+        var dialog = new ContentDialog
+        {
+            Title = isJa ? "フォルダが見つかりません" : "Folder Not Found",
+            Content = isJa 
+                ? $"選択されたフォルダ「{node.Name}」が見つかりません。\n({node.FullPath})\n\n移動先・変更後のフォルダを再選択しますか？"
+                : $"The folder '{node.Name}' ({node.FullPath}) could not be found.\n\nWould you like to select its new location?",
+            PrimaryButtonText = isJa ? "フォルダを再選択..." : "Re-select Folder...",
+            CloseButtonText = isJa ? "キャンセル" : "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = Content.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            var newFolder = await ViewModel.FileSystemService.SelectFolderAsync();
+            if (!string.IsNullOrEmpty(newFolder))
+            {
+                await ViewModel.RelocateLibraryFolderAsync(node, newFolder);
             }
         }
     }

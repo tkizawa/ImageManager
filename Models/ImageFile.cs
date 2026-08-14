@@ -3,6 +3,7 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using ImageManager.Services;
 
 namespace ImageManager.Models
 {
@@ -119,6 +120,12 @@ namespace ImageManager.Models
             OnPropertyChanged(nameof(FormattedDateTaken));
             OnPropertyChanged(nameof(FormattedExposureSpecs));
             OnPropertyChanged(nameof(FormattedFileSize));
+
+            try
+            {
+                DatabaseService.Instance.UpdateExifRecord(this);
+            }
+            catch { }
         }
 
         public string FormattedDateTaken

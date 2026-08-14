@@ -217,4 +217,7 @@
   <data name="CancelText" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="RelocateFolderMenu.Text" xml:space="preserve">
+    <value>Change Folder Location...</value>
+  </data>
 </root>
