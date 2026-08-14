@@ -110,5 +110,29 @@ namespace ImageManager.Tests
             // Assert
             Assert.Null(result);
         }
+
+        [Fact]
+        public void ExportAndImportSettings_ZipWithDatabase_WorksCorrectly()
+        {
+            var service = new SettingsService(_tempSettingsFilePath);
+            var exportZipPath = Path.Combine(_tempDirectory, "exported_backup.zip");
+            var originalSettings = new AppSettings
+            {
+                LastOpenedFolder = @"D:\Photos\2026",
+                FavoriteFolders = new() { @"D:\Photos\2026\Summer" }
+            };
+
+            // Act
+            bool exportResult = service.ExportSettings(exportZipPath, originalSettings);
+            var importedSettings = service.ImportSettings(exportZipPath);
+
+            // Assert
+            Assert.True(exportResult);
+            Assert.True(File.Exists(exportZipPath));
+            Assert.NotNull(importedSettings);
+            Assert.Equal(@"D:\Photos\2026", importedSettings!.LastOpenedFolder);
+            Assert.Single(importedSettings.FavoriteFolders);
+            Assert.Contains(@"D:\Photos\2026\Summer", importedSettings.FavoriteFolders);
+        }
     }
 }

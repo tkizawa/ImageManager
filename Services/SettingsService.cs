@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
 using ImageManager.Models;
 
@@ -66,8 +67,40 @@ namespace ImageManager.Services
             {
                 var options = new JsonSerializerOptions(_jsonOptions) { WriteIndented = true };
                 var json = JsonSerializer.Serialize(settings, options);
-                File.WriteAllText(filePath, json);
-                return true;
+
+                if (filePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tempDir = Path.Combine(Path.GetTempPath(), "ImageManagerBackup_" + Guid.NewGuid().ToString("N"));
+                    Directory.CreateDirectory(tempDir);
+                    try
+                    {
+                        string settingsJsonPath = Path.Combine(tempDir, "settings.json");
+                        File.WriteAllText(settingsJsonPath, json);
+
+                        string dbBackupPath = Path.Combine(tempDir, "imagemanager.db");
+                        DatabaseService.Instance.ExportDatabase(dbBackupPath);
+
+                        if (File.Exists(filePath))
+                        {
+                            File.Delete(filePath);
+                        }
+
+                        ZipFile.CreateFromDirectory(tempDir, filePath);
+                        return true;
+                    }
+                    finally
+                    {
+                        if (Directory.Exists(tempDir))
+                        {
+                            try { Directory.Delete(tempDir, true); } catch { }
+                        }
+                    }
+                }
+                else
+                {
+                    File.WriteAllText(filePath, json);
+                    return true;
+                }
             }
             catch
             {
@@ -80,8 +113,41 @@ namespace ImageManager.Services
             if (!File.Exists(filePath)) return null;
             try
             {
-                var json = File.ReadAllText(filePath);
-                return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions);
+                if (filePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tempDir = Path.Combine(Path.GetTempPath(), "ImageManagerExtract_" + Guid.NewGuid().ToString("N"));
+                    Directory.CreateDirectory(tempDir);
+                    try
+                    {
+                        ZipFile.ExtractToDirectory(filePath, tempDir, overwriteFiles: true);
+
+                        string dbBackupPath = Path.Combine(tempDir, "imagemanager.db");
+                        if (File.Exists(dbBackupPath))
+                        {
+                            DatabaseService.Instance.ImportDatabase(dbBackupPath);
+                        }
+
+                        string settingsJsonPath = Path.Combine(tempDir, "settings.json");
+                        if (File.Exists(settingsJsonPath))
+                        {
+                            var json = File.ReadAllText(settingsJsonPath);
+                            return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions);
+                        }
+                        return null;
+                    }
+                    finally
+                    {
+                        if (Directory.Exists(tempDir))
+                        {
+                            try { Directory.Delete(tempDir, true); } catch { }
+                        }
+                    }
+                }
+                else
+                {
+                    var json = File.ReadAllText(filePath);
+                    return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions);
+                }
             }
             catch
             {

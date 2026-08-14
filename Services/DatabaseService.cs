@@ -435,6 +435,33 @@ namespace ImageManager.Services
             cmd.ExecuteNonQuery();
         }
 
+        public void ExportDatabase(string backupFilePath)
+        {
+            if (File.Exists(backupFilePath))
+            {
+                File.Delete(backupFilePath);
+            }
+            using var conn = new SqliteConnection(_connectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "VACUUM INTO @backupPath;";
+            cmd.Parameters.AddWithValue("@backupPath", backupFilePath);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void ImportDatabase(string sourceDbFilePath)
+        {
+            if (!File.Exists(sourceDbFilePath)) return;
+
+            try
+            {
+                SqliteConnection.ClearAllPools();
+                File.Copy(sourceDbFilePath, _dbPath, overwrite: true);
+                InitializeDatabase();
+            }
+            catch { }
+        }
+
         public void RelocateFolderPath(string oldFolderPath, string newFolderPath)
         {
             using var conn = new SqliteConnection(_connectionString);

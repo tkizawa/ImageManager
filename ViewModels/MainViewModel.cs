@@ -639,7 +639,7 @@ namespace ImageManager.ViewModels
             settings.HistoryFolders = HistoryFolders.ToList();
             settings.LastOpenedFolder = CurrentFolderPath;
 
-            var filePath = await _fileSystemService.SaveFilePickerAsync("ImageManagerSettings.json", "JSON File (*.json)", ".json");
+            var filePath = await _fileSystemService.SaveFilePickerAsync("ImageManagerBackup.zip", "Zip Package (*.zip)", ".zip");
             if (!string.IsNullOrEmpty(filePath))
             {
                 bool success = _settingsService.ExportSettings(filePath, settings);
@@ -657,7 +657,11 @@ namespace ImageManager.ViewModels
         [RelayCommand]
         private async Task ImportSettingsAsync()
         {
-            var filePath = await _fileSystemService.OpenFilePickerAsync("JSON File (*.json)", ".json");
+            var filePath = await _fileSystemService.OpenFilePickerAsync("Zip Package / JSON File (*.zip)", ".zip");
+            if (string.IsNullOrEmpty(filePath))
+            {
+                filePath = await _fileSystemService.OpenFilePickerAsync("JSON File (*.json)", ".json");
+            }
             if (!string.IsNullOrEmpty(filePath))
             {
                 var imported = _settingsService.ImportSettings(filePath);
