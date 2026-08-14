@@ -244,18 +244,22 @@ namespace ImageManager.Services
             string relativePath = Path.GetRelativePath(libraryRootPath, fullPath);
             string fileHash = CalculateFileHash(fullPath);
 
+            // Ensure library record exists in Libraries table for FOREIGN KEY constraint
+            UpsertLibrary(libraryId, Path.GetFileName(libraryRootPath) ?? libraryId, libraryRootPath);
+
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
 
-            // 1. Check if exact (LibraryId, RelativePath) exists
+            // 1. Check if exact (LibraryId, RelativePath) exists OR LastKnownFullPath matches
             string? existingImageId = null;
             int isFav = 0;
             string? category = null;
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT ImageId, IsFavorite, Category FROM Images WHERE LibraryId = @libId AND RelativePath = @relPath";
+                cmd.CommandText = "SELECT ImageId, IsFavorite, Category FROM Images WHERE (LibraryId = @libId AND RelativePath = @relPath) OR LOWER(LastKnownFullPath) = LOWER(@fullPath)";
                 cmd.Parameters.AddWithValue("@libId", libraryId);
                 cmd.Parameters.AddWithValue("@relPath", relativePath);
+                cmd.Parameters.AddWithValue("@fullPath", fullPath);
                 using var reader = cmd.ExecuteReader();
                 if (reader.Read())
                 {
@@ -452,10 +456,29 @@ namespace ImageManager.Services
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "UPDATE Images SET IsFavorite = @fav WHERE LastKnownFullPath = @fullPath";
+            cmd.CommandText = "UPDATE Images SET IsFavorite = @fav WHERE LOWER(LastKnownFullPath) = LOWER(@fullPath)";
             cmd.Parameters.AddWithValue("@fav", isFavorite ? 1 : 0);
             cmd.Parameters.AddWithValue("@fullPath", filePath);
-            cmd.ExecuteNonQuery();
+            int rows = cmd.ExecuteNonQuery();
+
+            if (rows == 0)
+            {
+                string dirPath = Path.GetDirectoryName(filePath) ?? string.Empty;
+                string libId = string.IsNullOrEmpty(dirPath) ? "standalone" : "folder_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(dirPath.ToLowerInvariant()))).Substring(0, 16);
+                UpsertLibrary(libId, string.IsNullOrEmpty(dirPath) ? "Standalone" : Path.GetFileName(dirPath), dirPath);
+
+                using var insertCmd = conn.CreateCommand();
+                insertCmd.CommandText = @"
+                    INSERT INTO Images (ImageId, LibraryId, RelativePath, FileName, FileSize, FileHash, IsFavorite, LastKnownFullPath, LastScanTime)
+                    VALUES (@imageId, @libId, @fileName, @fileName, 0, '', @fav, @fullPath, @scanTime)";
+                insertCmd.Parameters.AddWithValue("@imageId", Guid.NewGuid().ToString());
+                insertCmd.Parameters.AddWithValue("@libId", libId);
+                insertCmd.Parameters.AddWithValue("@fileName", Path.GetFileName(filePath));
+                insertCmd.Parameters.AddWithValue("@fav", isFavorite ? 1 : 0);
+                insertCmd.Parameters.AddWithValue("@fullPath", filePath);
+                insertCmd.Parameters.AddWithValue("@scanTime", DateTime.UtcNow.ToString("o"));
+                insertCmd.ExecuteNonQuery();
+            }
         }
 
         public void ExportDatabase(string backupFilePath)

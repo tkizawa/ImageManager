@@ -486,7 +486,7 @@ namespace ImageManager.ViewModels
                 var files = _fileSystemService.GetImageFiles(folderPath).ToList();
                 var newImages = files.Select(f => new ImageFile(f)).ToList();
                 
-                string libId = "folder_" + folderPath.GetHashCode();
+                string libId = GetFolderLibraryId(folderPath);
                 foreach (var img in newImages)
                 {
                     try
@@ -557,6 +557,14 @@ namespace ImageManager.ViewModels
                     }
                 }
             });
+        }
+
+        private static string GetFolderLibraryId(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath)) return "folder_empty";
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(folderPath.ToLowerInvariant());
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(bytes);
+            return "folder_" + System.Convert.ToHexString(hash).Substring(0, 16);
         }
 
         [RelayCommand]

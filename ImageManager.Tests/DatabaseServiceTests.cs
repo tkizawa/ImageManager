@@ -139,5 +139,29 @@ namespace ImageManager.Tests
 
             Assert.Equal(imageId, resyncedId);
         }
+
+        [Fact]
+        public void UpdateImageFavorite_PersistsFavoriteFlagAcrossResync()
+        {
+            var dbService = new DatabaseService();
+            string folderPath = Path.Combine(_tempDirectory, "FavFolder");
+            Directory.CreateDirectory(folderPath);
+            string testFile = Path.Combine(folderPath, "fav_sample.jpg");
+            File.WriteAllText(testFile, "Favorite Image Data 123");
+
+            string libId = "folder_testlib";
+
+            var imgFile = new ImageFile(testFile);
+            dbService.SyncImageRecord(imgFile, libId, folderPath);
+
+            // User marks image as favorite
+            imgFile.IsFavorite = true;
+
+            // Simulate app restart / folder resync: create fresh ImageFile instance
+            var resyncedImgFile = new ImageFile(testFile);
+            dbService.SyncImageRecord(resyncedImgFile, libId, folderPath);
+
+            Assert.True(resyncedImgFile.IsFavorite);
+        }
     }
 }
