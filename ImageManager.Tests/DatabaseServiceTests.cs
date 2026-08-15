@@ -187,5 +187,39 @@ namespace ImageManager.Tests
 
             Assert.Equal(4, resyncedImgFile.Rating);
         }
+
+        [Fact]
+        public void BatchSyncImageRecords_And_GetFolderImageRecordsMap_WorksCorrectly()
+        {
+            var dbService = new DatabaseService(Path.Combine(_tempDirectory, "batch.db"));
+            string folderPath = Path.Combine(_tempDirectory, "BatchFolder");
+            Directory.CreateDirectory(folderPath);
+
+            string file1 = Path.Combine(folderPath, "img1.jpg");
+            string file2 = Path.Combine(folderPath, "img2.jpg");
+            File.WriteAllText(file1, "img 1 content");
+            File.WriteAllText(file2, "img 2 content");
+
+            var img1 = new ImageFile(file1) { IsFavorite = true, Rating = 5 };
+            var img2 = new ImageFile(file2) { IsFavorite = false, Rating = 3 };
+
+            string libId = "batch_test_lib";
+
+            // Batch sync
+            dbService.BatchSyncImageRecords(new[] { img1, img2 }, libId, folderPath);
+
+            // Fetch folder map in single query
+            var map = dbService.GetFolderImageRecordsMap(folderPath);
+
+            Assert.Equal(2, map.Count);
+            Assert.True(map.ContainsKey(file1));
+            Assert.True(map.ContainsKey(file2));
+
+            Assert.True(map[file1].IsFavorite);
+            Assert.Equal(5, map[file1].Rating);
+
+            Assert.False(map[file2].IsFavorite);
+            Assert.Equal(3, map[file2].Rating);
+        }
     }
 }

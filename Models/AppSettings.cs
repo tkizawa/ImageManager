@@ -31,5 +31,7 @@ namespace ImageManager.Models
         public bool UseOllamaForClassification { get; set; } = false;
         public string OllamaEndpoint { get; set; } = "http://localhost:11434";
         public string OllamaModelName { get; set; } = "llava";
+
+        public System.Collections.Generic.List<ExternalApp> ExternalApps { get; set; } = new();
     }
 }

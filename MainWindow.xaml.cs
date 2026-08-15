@@ -354,6 +354,12 @@ public partial class MainWindow : Window
         ViewModel.UpdateSelectedImages(selectedList);
     }
 
+    private async void ConfigureExternalApps_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ExternalAppsDialog(_settingsService);
+        await dialog.ShowAsync();
+    }
+
     private void Thumbnail_ContextFlyout_Opening(object sender, object e)
     {
         if (sender is MenuFlyout flyout && flyout.Target is FrameworkElement element && element.DataContext is Models.ImageFile clickedImage)
@@ -362,6 +368,73 @@ public partial class MainWindow : Window
             {
                 ThumbnailGridView.SelectedItem = clickedImage;
             }
+
+            var subMenu = flyout.Items.OfType<MenuFlyoutSubItem>().FirstOrDefault(i => i.Name == "ExternalAppsSubMenu" || i.Text.Contains("外部プログラム") || i.Text.Contains("External App"));
+            if (subMenu != null)
+            {
+                PopulateExternalAppsMenu(subMenu, clickedImage);
+            }
+        }
+    }
+
+    private void PopulateExternalAppsMenu(MenuFlyoutSubItem subMenu, Models.ImageFile imageFile)
+    {
+        subMenu.Items.Clear();
+        var settings = _settingsService.Load();
+        var apps = settings.ExternalApps ?? new List<Models.ExternalApp>();
+
+        if (apps.Count > 0)
+        {
+            foreach (var app in apps)
+            {
+                var item = new MenuFlyoutItem
+                {
+                    Text = app.Name,
+                    Tag = (app, imageFile)
+                };
+                item.Click += ExternalAppItem_Click;
+                subMenu.Items.Add(item);
+            }
+            subMenu.Items.Add(new MenuFlyoutSeparator());
+        }
+
+        var configItem = new MenuFlyoutItem
+        {
+            Text = "外部プログラムの設定..."
+        };
+        configItem.Click += ConfigureExternalApps_Click;
+        subMenu.Items.Add(configItem);
+    }
+
+    private void ExternalAppItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is (Models.ExternalApp app, Models.ImageFile imageFile))
+        {
+            LaunchExternalApp(app, imageFile.FilePath);
+        }
+    }
+
+    public static void LaunchExternalApp(Models.ExternalApp app, string filePath)
+    {
+        if (string.IsNullOrEmpty(app.ExecutablePath) || string.IsNullOrEmpty(filePath)) return;
+
+        try
+        {
+            string args = !string.IsNullOrEmpty(app.Arguments)
+                ? app.Arguments.Replace("{path}", $"\"{filePath}\"")
+                : $"\"{filePath}\"";
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = app.ExecutablePath,
+                Arguments = args,
+                UseShellExecute = true
+            };
+            System.Diagnostics.Process.Start(psi);
+        }
+        catch (System.Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to launch external app '{app.Name}': {ex.Message}");
         }
     }
 

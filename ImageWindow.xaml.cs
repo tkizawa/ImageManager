@@ -74,8 +74,8 @@ public sealed partial class ImageWindow : Window
         try
         {
             var bitmapImage = new BitmapImage();
-            _ = Services.RawThumbnailService.LoadBitmapImageAsync(bitmapImage, imageFile.FilePath, 0);
             FullImage.Source = bitmapImage;
+            _ = Services.RawThumbnailService.LoadBitmapImageAsync(bitmapImage, imageFile.FilePath, 0);
             
             _ = imageFile.LoadExifAsync();
 
@@ -163,6 +163,102 @@ public sealed partial class ImageWindow : Window
         var settings = _settingsService.Load();
         settings.ShowImageWindowInfo = newVisible;
         _settingsService.Save(settings);
+    }
+
+    private async void OpenWithPhotosMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var currentImage = _viewModel.SelectedImage;
+        if (currentImage != null && !string.IsNullOrEmpty(currentImage.FilePath))
+        {
+            try
+            {
+                var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(currentImage.FilePath);
+                var options = new Windows.System.LauncherOptions
+                {
+                    TargetApplicationPackageFamilyName = "Microsoft.Windows.Photos_8wekyb3d8bbwe"
+                };
+                await Windows.System.Launcher.LaunchFileAsync(file, options);
+            }
+            catch (System.Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to open with Photos: {ex.Message}");
+            }
+        }
+    }
+
+    private void ShowInExplorerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var currentImage = _viewModel.SelectedImage;
+        if (currentImage != null && !string.IsNullOrEmpty(currentImage.FilePath))
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{currentImage.FilePath}\"",
+                    UseShellExecute = true
+                };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (System.Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to show in explorer: {ex.Message}");
+            }
+        }
+    }
+
+    private void ContextFlyout_Opening(object sender, object e)
+    {
+        var currentImage = _viewModel.SelectedImage;
+        if (currentImage != null && !string.IsNullOrEmpty(currentImage.FilePath))
+        {
+            PopulateExternalAppsMenu(ExternalAppsSubMenu, currentImage);
+        }
+    }
+
+    private void PopulateExternalAppsMenu(MenuFlyoutSubItem subMenu, Models.ImageFile imageFile)
+    {
+        subMenu.Items.Clear();
+        var settings = _settingsService.Load();
+        var apps = settings.ExternalApps ?? new List<Models.ExternalApp>();
+
+        if (apps.Count > 0)
+        {
+            foreach (var app in apps)
+            {
+                var item = new MenuFlyoutItem
+                {
+                    Text = app.Name,
+                    Tag = (app, imageFile)
+                };
+                item.Click += ExternalAppItem_Click;
+                subMenu.Items.Add(item);
+            }
+            subMenu.Items.Add(new MenuFlyoutSeparator());
+        }
+
+        var configItem = new MenuFlyoutItem
+        {
+            Text = "外部プログラムの設定..."
+        };
+        configItem.Click += ConfigureExternalApps_Click;
+        subMenu.Items.Add(configItem);
+    }
+
+    private void ExternalAppItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is (Models.ExternalApp app, Models.ImageFile imageFile))
+        {
+            MainWindow.LaunchExternalApp(app, imageFile.FilePath);
+        }
+    }
+
+    private async void ConfigureExternalApps_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ExternalAppsDialog(_settingsService);
+        dialog.XamlRoot = this.Content?.XamlRoot ?? App.MainWindow?.Content?.XamlRoot;
+        await dialog.ShowAsync();
     }
 
     private void NextImage_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)

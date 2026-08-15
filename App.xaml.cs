@@ -5,6 +5,7 @@ namespace ImageManager;
 public partial class App : Application
 {
     public static MainWindow MainWindow { get; private set; } = null!;
+    public static Microsoft.UI.Dispatching.DispatcherQueue? MainDispatcherQueue { get; private set; }
 
     public App()
     {
@@ -19,6 +20,8 @@ public partial class App : Application
     {
         try 
         {
+            MainDispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
             var fileSystemService = new ImageManager.Services.FileSystemService();
             var settingsService = new ImageManager.Services.SettingsService();
             var mainViewModel = new ImageManager.ViewModels.MainViewModel(fileSystemService, settingsService);

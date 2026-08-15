@@ -617,14 +617,39 @@ namespace ImageManager.ViewModels
                 var newImages = files.Select(f => new ImageFile(f)).ToList();
                 
                 string libId = GetFolderLibraryId(folderPath);
+
+                // Fast metadata merge from cached DB records (Single query)
+                var cachedMap = _databaseService.GetFolderImageRecordsMap(folderPath);
                 foreach (var img in newImages)
+                {
+                    if (cachedMap.TryGetValue(img.FilePath, out var rec))
+                    {
+                        img.IsFavorite = rec.IsFavorite;
+                        if (rec.Rating > 0 && img.Rating == 0)
+                        {
+                            img.Rating = rec.Rating;
+                        }
+                        if (!string.IsNullOrEmpty(rec.Category) && string.IsNullOrEmpty(img.Category))
+                        {
+                            img.Category = rec.Category;
+                        }
+                        if (!string.IsNullOrEmpty(rec.DateTaken) && string.IsNullOrEmpty(img.DateTaken))
+                        {
+                            img.DateTaken = rec.DateTaken;
+                        }
+                    }
+                }
+
+                // Run batch DB sync asynchronously in background without blocking UI thumbnail loading
+                var imagesForSync = newImages.ToList();
+                _ = Task.Run(() =>
                 {
                     try
                     {
-                        _databaseService.SyncImageRecord(img, libId, folderPath);
+                        _databaseService.BatchSyncImageRecords(imagesForSync, libId, folderPath);
                     }
                     catch { }
-                }
+                });
 
                 // 1. お気に入りフィルター
                 if (ShowOnlyFavorites)

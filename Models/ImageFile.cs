@@ -108,6 +108,150 @@ namespace ImageManager.Models
 
         public bool IsExifLoaded { get; private set; }
 
+        private Microsoft.UI.Xaml.Media.ImageSource? _thumbnailSource;
+
+        private bool _isThumbnailLoading;
+
+        public Microsoft.UI.Xaml.Media.ImageSource? ThumbnailSource
+        {
+            get
+            {
+                if (_thumbnailSource == null && !_isThumbnailLoading && !string.IsNullOrEmpty(FilePath))
+                {
+                    _ = LoadThumbnailAsync();
+                }
+                return _thumbnailSource;
+            }
+            set
+            {
+                SetProperty(ref _thumbnailSource, value);
+            }
+        }
+
+        public async Task LoadThumbnailAsync(int decodeWidth = 300)
+        {
+            if (string.IsNullOrEmpty(FilePath) || _thumbnailSource != null || _isThumbnailLoading) return;
+            _isThumbnailLoading = true;
+
+            try
+            {
+                var dq = App.MainDispatcherQueue ?? App.MainWindow?.DispatcherQueue ?? Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
+                void SetUriSource(string uriPath)
+                {
+                    if (dq != null && !dq.HasThreadAccess)
+                    {
+                        dq.TryEnqueue(() =>
+                        {
+                            try
+                            {
+                                ThumbnailSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(uriPath)) { DecodePixelWidth = decodeWidth };
+                            }
+                            catch { }
+                        });
+                    }
+                    else
+                    {
+                        try
+                        {
+                            ThumbnailSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(uriPath)) { DecodePixelWidth = decodeWidth };
+                        }
+                        catch { }
+                    }
+                }
+
+                bool isRaw = RawThumbnailService.IsRawFile(FilePath);
+
+                if (!isRaw)
+                {
+                    SetUriSource(FilePath);
+                    return;
+                }
+
+                // Check disk cache first for RAW
+                string? cacheFilePath = RawThumbnailService.GetCacheFilePath(FilePath);
+                if (cacheFilePath != null && File.Exists(cacheFilePath))
+                {
+                    SetUriSource(cacheFilePath);
+                    return;
+                }
+
+                // Extract JPEG from RAW
+                var jpegBytes = await RawThumbnailService.GetEmbeddedJpegBytesAsync(FilePath);
+                if (cacheFilePath != null && File.Exists(cacheFilePath))
+                {
+                    SetUriSource(cacheFilePath);
+                    return;
+                }
+
+                if (jpegBytes != null && jpegBytes.Length > 0)
+                {
+                    if (dq != null && !dq.HasThreadAccess)
+                    {
+                        dq.TryEnqueue(async () =>
+                        {
+                            try
+                            {
+                                var bitmap = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage { DecodePixelWidth = decodeWidth };
+                                using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                                using var writer = new Windows.Storage.Streams.DataWriter(stream.GetOutputStreamAt(0));
+                                writer.WriteBytes(jpegBytes);
+                                await writer.StoreAsync();
+                                stream.Seek(0);
+                                await bitmap.SetSourceAsync(stream);
+                                ThumbnailSource = bitmap;
+                            }
+                            catch { }
+                        });
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var bitmap = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage { DecodePixelWidth = decodeWidth };
+                            using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                            using var writer = new Windows.Storage.Streams.DataWriter(stream.GetOutputStreamAt(0));
+                            writer.WriteBytes(jpegBytes);
+                            await writer.StoreAsync();
+                            stream.Seek(0);
+                            await bitmap.SetSourceAsync(stream);
+                            ThumbnailSource = bitmap;
+                        }
+                        catch { }
+                    }
+                    return;
+                }
+
+                // Fallback for RAW
+                if (dq != null)
+                {
+                    dq.TryEnqueue(async () =>
+                    {
+                        try
+                        {
+                            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(FilePath);
+                            using var thumb = await file.GetScaledImageAsThumbnailAsync(
+                                Windows.Storage.FileProperties.ThumbnailMode.PicturesView,
+                                (uint)decodeWidth,
+                                Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
+                            if (thumb != null && thumb.Size > 0)
+                            {
+                                var bitmap = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage { DecodePixelWidth = decodeWidth };
+                                await bitmap.SetSourceAsync(thumb);
+                                ThumbnailSource = bitmap;
+                            }
+                        }
+                        catch { }
+                    });
+                }
+            }
+            catch { }
+            finally
+            {
+                _isThumbnailLoading = false;
+            }
+        }
+
         public ImageFile(string path)
         {
             FilePath = path;

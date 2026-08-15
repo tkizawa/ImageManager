@@ -650,5 +650,162 @@ namespace ImageManager.Services
             transaction.Commit();
         }
         #endregion
+
+        #region Batch Operations & High Performance Folder Loading
+        public class CachedImageRecord
+        {
+            public string ImageId { get; set; } = string.Empty;
+            public string RelativePath { get; set; } = string.Empty;
+            public string LastKnownFullPath { get; set; } = string.Empty;
+            public bool IsFavorite { get; set; }
+            public int Rating { get; set; }
+            public string? Category { get; set; }
+            public string? DateTaken { get; set; }
+            public string FileHash { get; set; } = string.Empty;
+        }
+
+        public Dictionary<string, CachedImageRecord> GetFolderImageRecordsMap(string folderPath)
+        {
+            var dict = new Dictionary<string, CachedImageRecord>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(folderPath)) return dict;
+
+            try
+            {
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
+
+                using var cmd = conn.CreateCommand();
+                string folderPrefix = folderPath.TrimEnd('\\', '/') + "\\";
+                cmd.CommandText = @"
+                    SELECT ImageId, RelativePath, LastKnownFullPath, IsFavorite, Rating, Category, DateTaken, FileHash 
+                    FROM Images 
+                    WHERE LastKnownFullPath LIKE @folderPattern OR LastKnownFullPath LIKE @exactFolder;
+                ";
+                cmd.Parameters.AddWithValue("@folderPattern", folderPrefix + "%");
+                cmd.Parameters.AddWithValue("@exactFolder", folderPath.TrimEnd('\\', '/') + "/%");
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    var rec = new CachedImageRecord
+                    {
+                        ImageId = reader.GetString(0),
+                        RelativePath = reader.GetString(1),
+                        LastKnownFullPath = reader.GetString(2),
+                        IsFavorite = !reader.IsDBNull(3) && reader.GetInt32(3) == 1,
+                        Rating = !reader.IsDBNull(4) ? reader.GetInt32(4) : 0,
+                        Category = !reader.IsDBNull(5) ? reader.GetString(5) : null,
+                        DateTaken = !reader.IsDBNull(6) ? reader.GetString(6) : null,
+                        FileHash = !reader.IsDBNull(7) ? reader.GetString(7) : string.Empty,
+                    };
+                    dict[rec.LastKnownFullPath] = rec;
+                }
+            }
+            catch { }
+            return dict;
+        }
+
+        public void BatchSyncImageRecords(IReadOnlyList<ImageFile> images, string libraryId, string libraryRootPath)
+        {
+            if (images == null || images.Count == 0) return;
+
+            try
+            {
+                UpsertLibrary(libraryId, Path.GetFileName(libraryRootPath) ?? libraryId, libraryRootPath);
+
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
+
+                using var transaction = conn.BeginTransaction();
+
+                var existingMap = new Dictionary<string, CachedImageRecord>(StringComparer.OrdinalIgnoreCase);
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.Transaction = transaction;
+                    cmd.CommandText = "SELECT ImageId, RelativePath, LastKnownFullPath, IsFavorite, Rating, Category, DateTaken, FileHash FROM Images WHERE LibraryId = @libId";
+                    cmd.Parameters.AddWithValue("@libId", libraryId);
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        var rec = new CachedImageRecord
+                        {
+                            ImageId = reader.GetString(0),
+                            RelativePath = reader.GetString(1),
+                            LastKnownFullPath = reader.GetString(2),
+                            IsFavorite = !reader.IsDBNull(3) && reader.GetInt32(3) == 1,
+                            Rating = !reader.IsDBNull(4) ? reader.GetInt32(4) : 0,
+                            Category = !reader.IsDBNull(5) ? reader.GetString(5) : null,
+                            DateTaken = !reader.IsDBNull(6) ? reader.GetString(6) : null,
+                            FileHash = !reader.IsDBNull(7) ? reader.GetString(7) : string.Empty,
+                        };
+                        existingMap[rec.LastKnownFullPath] = rec;
+                        existingMap[rec.RelativePath] = rec;
+                    }
+                }
+
+                foreach (var imageFile in images)
+                {
+                    string fullPath = imageFile.FilePath;
+                    string relPath = Path.GetRelativePath(libraryRootPath, fullPath);
+
+                    if (existingMap.TryGetValue(fullPath, out var existing) || existingMap.TryGetValue(relPath, out existing))
+                    {
+                        // Update existing record
+                        using var updateCmd = conn.CreateCommand();
+                        updateCmd.Transaction = transaction;
+                        updateCmd.CommandText = @"
+                            UPDATE Images SET 
+                                FileSize = @fileSize,
+                                DateTaken = @dateTaken,
+                                LastKnownFullPath = @fullPath,
+                                LastScanTime = @scanTime
+                            WHERE ImageId = @imageId;
+                        ";
+                        updateCmd.Parameters.AddWithValue("@fileSize", imageFile.FileSize);
+                        updateCmd.Parameters.AddWithValue("@dateTaken", imageFile.DateTaken ?? string.Empty);
+                        updateCmd.Parameters.AddWithValue("@fullPath", fullPath);
+                        updateCmd.Parameters.AddWithValue("@scanTime", DateTime.UtcNow.ToString("o"));
+                        updateCmd.Parameters.AddWithValue("@imageId", existing.ImageId);
+                        updateCmd.ExecuteNonQuery();
+                    }
+                    else
+                    {
+                        // Insert new record
+                        string newImageId = Guid.NewGuid().ToString();
+                        string fileHash = CalculateFileHash(fullPath);
+                        using var insertCmd = conn.CreateCommand();
+                        insertCmd.Transaction = transaction;
+                        insertCmd.CommandText = @"
+                            INSERT INTO Images (
+                                ImageId, LibraryId, RelativePath, FileName, FileSize, FileHash, 
+                                DateTaken, Width, Height, Category, IsFavorite, Rating, LastKnownFullPath, LastScanTime
+                            ) VALUES (
+                                @imageId, @libId, @relPath, @fileName, @fileSize, @fileHash, 
+                                @dateTaken, @width, @height, @category, @isFav, @rating, @fullPath, @scanTime
+                            );
+                        ";
+                        insertCmd.Parameters.AddWithValue("@imageId", newImageId);
+                        insertCmd.Parameters.AddWithValue("@libId", libraryId);
+                        insertCmd.Parameters.AddWithValue("@relPath", relPath);
+                        insertCmd.Parameters.AddWithValue("@fileName", imageFile.FileName);
+                        insertCmd.Parameters.AddWithValue("@fileSize", imageFile.FileSize);
+                        insertCmd.Parameters.AddWithValue("@fileHash", fileHash);
+                        insertCmd.Parameters.AddWithValue("@dateTaken", imageFile.DateTaken ?? string.Empty);
+                        insertCmd.Parameters.AddWithValue("@width", imageFile.ImageWidth);
+                        insertCmd.Parameters.AddWithValue("@height", imageFile.ImageHeight);
+                        insertCmd.Parameters.AddWithValue("@category", imageFile.Category ?? string.Empty);
+                        insertCmd.Parameters.AddWithValue("@isFav", imageFile.IsFavorite ? 1 : 0);
+                        insertCmd.Parameters.AddWithValue("@rating", imageFile.Rating);
+                        insertCmd.Parameters.AddWithValue("@fullPath", fullPath);
+                        insertCmd.Parameters.AddWithValue("@scanTime", DateTime.UtcNow.ToString("o"));
+                        insertCmd.ExecuteNonQuery();
+                    }
+                }
+
+                transaction.Commit();
+            }
+            catch { }
+        }
+        #endregion
     }
 }

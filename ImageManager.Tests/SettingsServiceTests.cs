@@ -134,5 +134,29 @@ namespace ImageManager.Tests
             Assert.Single(importedSettings.FavoriteFolders);
             Assert.Contains(@"D:\Photos\2026\Summer", importedSettings.FavoriteFolders);
         }
+
+        [Fact]
+        public void SaveAndLoad_PersistsExternalAppsCorrectly()
+        {
+            var service = new SettingsService(_tempSettingsFilePath);
+            var settingsToSave = new AppSettings
+            {
+                ExternalApps = new()
+                {
+                    new ExternalApp { Name = "Photoshop", ExecutablePath = @"C:\Program Files\Adobe\Photoshop.exe", Arguments = "{path}" },
+                    new ExternalApp { Name = "GIMP", ExecutablePath = @"C:\Program Files\GIMP 2\bin\gimp-2.10.exe", Arguments = "\"{path}\"" }
+                }
+            };
+
+            service.Save(settingsToSave);
+            var loadedSettings = service.Load();
+
+            Assert.NotNull(loadedSettings);
+            Assert.Equal(2, loadedSettings.ExternalApps.Count);
+            Assert.Equal("Photoshop", loadedSettings.ExternalApps[0].Name);
+            Assert.Equal(@"C:\Program Files\Adobe\Photoshop.exe", loadedSettings.ExternalApps[0].ExecutablePath);
+            Assert.Equal("{path}", loadedSettings.ExternalApps[0].Arguments);
+            Assert.Equal("GIMP", loadedSettings.ExternalApps[1].Name);
+        }
     }
 }

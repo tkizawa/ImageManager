@@ -319,4 +319,13 @@
   <data name="RatingFilterNone.Content" xml:space="preserve">
     <value>No Rating</value>
   </data>
+  <data name="ExternalAppsMenu.Text" xml:space="preserve">
+    <value>Open with External App</value>
+  </data>
+  <data name="ConfigureExternalAppsMenu.Text" xml:space="preserve">
+    <value>Configure External Apps...</value>
+  </data>
+  <data name="ExternalAppsDialogTitle" xml:space="preserve">
+    <value>External App Settings</value>
+  </data>
 </root>

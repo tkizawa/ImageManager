@@ -12,7 +12,7 @@
           KeyboardAcceleratorPlacementMode="Hidden"
           ToolTipService.ToolTip="右クリックで画像情報の表示・非表示の切り替え">
         <Grid.ContextFlyout>
-            <MenuFlyout>
+            <MenuFlyout Opening="ContextFlyout_Opening">
                 <ToggleMenuFlyoutItem x:Name="ToggleInfoMenuItem" 
                                        Text="写真情報を表示" 
                                        IsChecked="True"
@@ -36,6 +36,26 @@
                     <MenuFlyoutItem Text="★ 4 (4)" Click="SetRatingMenuItem_Click" Tag="4" />
                     <MenuFlyoutItem Text="★ 5 (5)" Click="SetRatingMenuItem_Click" Tag="5" />
                 </MenuFlyoutSubItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem x:Name="OpenWithPhotosMenuItem"
+                                Text="Windowsのフォトで画像を開く"
+                                Click="OpenWithPhotosMenuItem_Click">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE790;"/>
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSubItem x:Name="ExternalAppsSubMenu" Text="外部プログラムで開く">
+                    <MenuFlyoutSubItem.Icon>
+                        <FontIcon Glyph="&#xE7AC;"/>
+                    </MenuFlyoutSubItem.Icon>
+                </MenuFlyoutSubItem>
+                <MenuFlyoutItem x:Name="ShowInExplorerMenuItem"
+                                Text="エクスプローラーで表示"
+                                Click="ShowInExplorerMenuItem_Click">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xEC50;"/>
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
             </MenuFlyout>
         </Grid.ContextFlyout>
 
