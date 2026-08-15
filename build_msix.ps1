@@ -4,7 +4,7 @@ Write-Host "Building and Packaging ImageManager as MSIX (x64 & ARM64)..." -Foreg
 
 # Build x64 MSIX
 Write-Host "Building win-x64 MSIX..." -ForegroundColor Cyan
-dotnet publish -c Release -r win-x64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageSigningEnabled=false
+dotnet publish "$PSScriptRoot\ImageManager.csproj" -c Release -r win-x64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageSigningEnabled=false
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build ImageManager win-x64 MSIX."
@@ -13,7 +13,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Build ARM64 MSIX
 Write-Host "Building win-arm64 MSIX..." -ForegroundColor Cyan
-dotnet publish -c Release -r win-arm64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageSigningEnabled=false
+dotnet publish "$PSScriptRoot\ImageManager.csproj" -c Release -r win-arm64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageSigningEnabled=false
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build ImageManager win-arm64 MSIX."
