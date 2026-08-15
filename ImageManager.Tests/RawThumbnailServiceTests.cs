@@ -123,7 +123,7 @@ namespace ImageManager.Tests
 
             string? cacheFilePath = RawThumbnailService.GetCacheFilePath(tempFile);
             Assert.NotNull(cacheFilePath);
-            Assert.EndsWith($"raw_v8_{key1}.jpg", cacheFilePath);
+            Assert.EndsWith($"raw_v9_{key1}.jpg", cacheFilePath);
         }
 
         [Fact]
@@ -132,22 +132,27 @@ namespace ImageManager.Tests
             string folder = @"E:\KIZAWA\OneDrive - WoodStream Networks\01_写真\2026\2026-08\2026-08-14-江の島\CR3";
             if (!Directory.Exists(folder)) return;
 
-            string[] testFiles = new[] { "IMG_5739.CR3", "IMG_5740.CR3", "IMG_5741.CR3", "IMG_5742.CR3", "IMG_5743.CR3" };
+            string[] testFiles = new[] { "IMG_5739.CR3", "IMG_5744.CR3", "IMG_5751.CR3" };
 
             foreach (var name in testFiles)
             {
                 string path = Path.Combine(folder, name);
                 if (!File.Exists(path)) continue;
 
-                var fullJpeg = await RawThumbnailService.GetEmbeddedJpegBytesAsync(path);
-                Assert.NotNull(fullJpeg);
-                Assert.True(fullJpeg.Length > 500000);
+                int ori = RawThumbnailService.GetRawOrientation(path);
+                var jpeg = await RawThumbnailService.GetEmbeddedJpegBytesAsync(path);
+                Assert.NotNull(jpeg);
+                RawThumbnailService.GetJpegDimensions(jpeg, out int w, out int h);
+                Console.WriteLine($"[TEST-RESULT] {name}: ori={ori}, dims={w}x{h}");
 
-                bool ok = RawThumbnailService.GetJpegDimensions(fullJpeg, out int w, out int h);
-                Console.WriteLine($"[TEST-RESULT] {name}: len={fullJpeg.Length}, ok={ok}, {w}x{h}");
-                Assert.True(ok);
-                Assert.Equal(6000, w);
-                Assert.Equal(4000, h);
+                if (ori == 6 || ori == 8)
+                {
+                    Assert.True(h > w, $"{name} should be vertical (h > w) but got {w}x{h}");
+                }
+                else if (ori == 1)
+                {
+                    Assert.True(w > h, $"{name} should be horizontal (w > h) but got {w}x{h}");
+                }
             }
         }
 

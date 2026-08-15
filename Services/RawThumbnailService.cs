@@ -64,7 +64,7 @@ namespace ImageManager.Services
         {
             string key = GetThumbnailCacheKey(filePath);
             if (string.IsNullOrEmpty(key)) return null;
-            return Path.Combine(CacheDirectory, $"raw_v8_{key}.jpg");
+            return Path.Combine(CacheDirectory, $"raw_v9_{key}.jpg");
         }
 
         public static bool IsRawFile(string filePath)
@@ -84,6 +84,107 @@ namespace ImageManager.Services
         public static IEnumerable<string> GetSupportedExtensions()
         {
             return StandardExtensions.Concat(RawExtensions);
+        }
+
+        public static int GetRawOrientation(string filePath)
+        {
+            try
+            {
+                var directories = MetadataExtractor.ImageMetadataReader.ReadMetadata(filePath);
+                var ifd0 = directories.OfType<MetadataExtractor.Formats.Exif.ExifIfd0Directory>().FirstOrDefault();
+                if (ifd0 != null && ifd0.ContainsTag(MetadataExtractor.Formats.Exif.ExifIfd0Directory.TagOrientation))
+                {
+                    var obj = ifd0.GetObject(MetadataExtractor.Formats.Exif.ExifIfd0Directory.TagOrientation);
+                    if (obj != null)
+                    {
+                        return Convert.ToInt32(obj);
+                    }
+                }
+            }
+            catch { }
+            return 1;
+        }
+
+        public static async Task<byte[]> RotateJpegBytesAsync(byte[] jpegBytes, int orientation)
+        {
+            if (orientation <= 1 || orientation > 8) return jpegBytes;
+
+            try
+            {
+                using var inStream = new InMemoryRandomAccessStream();
+                using (var writer = new DataWriter(inStream.GetOutputStreamAt(0)))
+                {
+                    writer.WriteBytes(jpegBytes);
+                    await writer.StoreAsync();
+                }
+                inStream.Seek(0);
+
+                var decoder = await BitmapDecoder.CreateAsync(inStream);
+                var transform = new BitmapTransform();
+
+                switch (orientation)
+                {
+                    case 3:
+                        transform.Rotation = BitmapRotation.Clockwise180Degrees;
+                        break;
+                    case 6:
+                        transform.Rotation = BitmapRotation.Clockwise90Degrees;
+                        break;
+                    case 8:
+                        transform.Rotation = BitmapRotation.Clockwise270Degrees;
+                        break;
+                    case 2:
+                        transform.Flip = BitmapFlip.Horizontal;
+                        break;
+                    case 4:
+                        transform.Flip = BitmapFlip.Vertical;
+                        break;
+                    case 5:
+                        transform.Rotation = BitmapRotation.Clockwise90Degrees;
+                        transform.Flip = BitmapFlip.Horizontal;
+                        break;
+                    case 7:
+                        transform.Rotation = BitmapRotation.Clockwise270Degrees;
+                        transform.Flip = BitmapFlip.Horizontal;
+                        break;
+                    default:
+                        return jpegBytes;
+                }
+
+                var pixelData = await decoder.GetPixelDataAsync(
+                    BitmapPixelFormat.Bgra8,
+                    BitmapAlphaMode.Premultiplied,
+                    transform,
+                    ExifOrientationMode.IgnoreExifOrientation,
+                    ColorManagementMode.ColorManageToSRgb);
+
+                byte[] pixels = pixelData.DetachPixelData();
+                uint outWidth = (orientation == 6 || orientation == 8 || orientation == 5 || orientation == 7) ? decoder.PixelHeight : decoder.PixelWidth;
+                uint outHeight = (orientation == 6 || orientation == 8 || orientation == 5 || orientation == 7) ? decoder.PixelWidth : decoder.PixelHeight;
+
+                using var outStream = new InMemoryRandomAccessStream();
+                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, outStream);
+                encoder.SetPixelData(
+                    BitmapPixelFormat.Bgra8,
+                    BitmapAlphaMode.Ignore,
+                    outWidth,
+                    outHeight,
+                    96,
+                    96,
+                    pixels);
+                await encoder.FlushAsync();
+
+                outStream.Seek(0);
+                byte[] rotatedJpeg = new byte[outStream.Size];
+                using var reader = new DataReader(outStream.GetInputStreamAt(0));
+                await reader.LoadAsync((uint)outStream.Size);
+                reader.ReadBytes(rotatedJpeg);
+                return rotatedJpeg;
+            }
+            catch
+            {
+                return jpegBytes;
+            }
         }
 
         public static async Task<byte[]?> GetEmbeddedJpegBytesAsync(string filePath)
@@ -136,6 +237,15 @@ namespace ImageManager.Services
                     if (jpegBytes == null || jpegBytes.Length == 0)
                     {
                         jpegBytes = await DecodeRawUsingWindowsCodecAsync(filePath);
+                    }
+
+                    if (jpegBytes != null && jpegBytes.Length > 0)
+                    {
+                        int orientation = GetRawOrientation(filePath);
+                        if (orientation > 1)
+                        {
+                            jpegBytes = await RotateJpegBytesAsync(jpegBytes, orientation);
+                        }
                     }
                 }
                 catch { }
