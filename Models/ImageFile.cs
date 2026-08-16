@@ -160,19 +160,27 @@ namespace ImageManager.Models
                     }
                 }
 
+                // Check disk cache first for ALL images (RAW and Standard)
+                string? cacheFilePath = RawThumbnailService.GetCacheFilePath(FilePath);
+                if (cacheFilePath != null && File.Exists(cacheFilePath))
+                {
+                    SetUriSource(cacheFilePath);
+                    return;
+                }
+
                 bool isRaw = RawThumbnailService.IsRawFile(FilePath);
 
                 if (!isRaw)
                 {
                     SetUriSource(FilePath);
-                    return;
-                }
-
-                // Check disk cache first for RAW
-                string? cacheFilePath = RawThumbnailService.GetCacheFilePath(FilePath);
-                if (cacheFilePath != null && File.Exists(cacheFilePath))
-                {
-                    SetUriSource(cacheFilePath);
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await RawThumbnailService.GetEmbeddedJpegBytesAsync(FilePath);
+                        }
+                        catch { }
+                    });
                     return;
                 }
 

@@ -158,5 +158,25 @@ namespace ImageManager.Tests
             Assert.Equal("{path}", loadedSettings.ExternalApps[0].Arguments);
             Assert.Equal("GIMP", loadedSettings.ExternalApps[1].Name);
         }
+
+        [Fact]
+        public void SaveAndLoad_PersistsCacheCleanSettingsCorrectly()
+        {
+            var service = new SettingsService(_tempSettingsFilePath);
+            var settingsToSave = new AppSettings
+            {
+                AutoCleanCacheOnExit = true,
+                CacheCleanPeriodDays = 14,
+                CacheCleanMaxSizeBytes = 5368709120 // 5 GB
+            };
+
+            service.Save(settingsToSave);
+            var loadedSettings = service.Load();
+
+            Assert.NotNull(loadedSettings);
+            Assert.True(loadedSettings.AutoCleanCacheOnExit);
+            Assert.Equal(14, loadedSettings.CacheCleanPeriodDays);
+            Assert.Equal(5368709120, loadedSettings.CacheCleanMaxSizeBytes);
+        }
     }
 }

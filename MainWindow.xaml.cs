@@ -24,6 +24,8 @@ public partial class MainWindow : Window
     private bool _isThumbnailDragScrolling;
     private Windows.Foundation.Point _thumbnailStartPoint;
     private Windows.Foundation.Point _thumbnailLastPoint;
+    private bool _isClosingHandled;
+    private bool _isCleaningOnExit;
 
     public MainWindow()
     {
@@ -37,6 +39,7 @@ public partial class MainWindow : Window
             
             _appWindow.Title = "WoodStream ImageManager";
             _appWindow.SetIcon("Assets\\AppIcon.ico");
+            _appWindow.Closing += AppWindow_Closing;
         } catch (System.Exception ex) {
             System.IO.File.WriteAllText("crash_main.log", ex.ToString());
         }
@@ -356,7 +359,13 @@ public partial class MainWindow : Window
 
     private async void ConfigureExternalApps_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new ExternalAppsDialog(_settingsService);
+        var dialog = new ExternalAppsDialog(_settingsService, RootGrid.XamlRoot);
+        await dialog.ShowAsync();
+    }
+
+    private async void ConfigureCache_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new CacheManagementDialog(_settingsService, RootGrid.XamlRoot);
         await dialog.ShowAsync();
     }
 
@@ -854,6 +863,53 @@ public partial class MainWindow : Window
         _ = ViewModel.InitializeAsync();
     }
 
+    private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_isClosingHandled) return;
+        if (_isCleaningOnExit)
+        {
+            args.Cancel = true;
+            return;
+        }
+
+        try
+        {
+            var settings = _settingsService.Load();
+            if (settings.AutoCleanCacheOnExit && (settings.CacheCleanPeriodDays > 0 || settings.CacheCleanMaxSizeBytes > 0))
+            {
+                if (Services.ThumbnailCacheService.EvaluateCleanupRequired(settings.CacheCleanPeriodDays, settings.CacheCleanMaxSizeBytes))
+                {
+                    args.Cancel = true;
+                    _isCleaningOnExit = true;
+
+                    var cleanResult = await Services.ThumbnailCacheService.CleanCacheAsync(settings.CacheCleanPeriodDays, settings.CacheCleanMaxSizeBytes);
+                    if (cleanResult.DeletedCount > 0 && RootGrid.XamlRoot != null)
+                    {
+                        var isJa = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("ja", StringComparison.OrdinalIgnoreCase);
+                        var dialog = new ContentDialog
+                        {
+                            Title = isJa ? "キャッシュの自動削除" : "Automatic Cache Cleanup",
+                            Content = isJa
+                                ? $"終了時のキャッシュ自動削除を実行しました。\n\n削除ファイル数: {cleanResult.DeletedCount:N0} 件\n解放容量: {Services.ThumbnailCacheService.FormatBytes(cleanResult.FreedBytes)}"
+                                : $"Automatic cache cleanup on exit has completed.\n\nDeleted files: {cleanResult.DeletedCount:N0}\nFreed space: {Services.ThumbnailCacheService.FormatBytes(cleanResult.FreedBytes)}",
+                            CloseButtonText = "OK",
+                            DefaultButton = ContentDialogButton.Close,
+                            XamlRoot = RootGrid.XamlRoot
+                        };
+                        await dialog.ShowAsync();
+                    }
+
+                    _isClosingHandled = true;
+                    this.Close();
+                    return;
+                }
+            }
+        }
+        catch { }
+
+        _isClosingHandled = true;
+    }
+
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         var settings = _settingsService.Load();
@@ -1020,10 +1076,29 @@ public partial class MainWindow : Window
                 "【自動判別・分類】: ONNX Runtime（GPU/CPU）または色調・特徴解析により画像を主要カテゴリー（人物・風景・動物・食べ物・乗り物・建物・文書）に判定し、「サブフォルダにコピー」「サブフォルダに移動」「タグ付与のみ」を選択して一括処理。"
             }));
 
+            stack.Children.Add(CreateHelpSection("📷 RAW画像 (CR3 / ORF / NEF / ARW 等) の高画質プレビュー", new[]
+            {
+                "【フル解像度プレビュー】: Canon CR3、Olympus ORF、Nikon NEF、Sony ARW などの各社RAW画像からフルサイズの最高画質プレビューを自動抽出して高速表示。",
+                "【縦横の自動回転】: カメラ本体のジャイロセンサー（Exif Orientation）を自動解析し、縦撮り写真を正しい縦向きに自動回転してサムネイルおよびビュアーに描画。"
+            }));
+
+            stack.Children.Add(CreateHelpSection("🎨 外部プログラム連携 (Photoshop / GIMP / ペイント等)", new[]
+            {
+                "【プログラムの登録】: 「設定（歯車）」メニューの「外部プログラムの設定...」から、よく使う画像編集ソフト（Photoshop、GIMP、Affinity Photo、ペイントなど）を自由に追加・管理。",
+                "【外部アプリで開く】: サムネイルやビュアーの右クリックメニュー「外部プログラムで開く」から、登録したアプリを選択して瞬時に画像を渡して起動。"
+            }));
+
+            stack.Children.Add(CreateHelpSection("💾 サムネイルのキャッシュ管理", new[]
+            {
+                "【キャッシュの管理】: 「設定（歯車）」メニューの「キャッシュの管理...」から現在のキャッシュ使用量・ファイル数を確認。",
+                "【一括削除】: 「キャッシュを一括削除」ボタンでディスクおよびメモリ上のサムネイルキャッシュを即時クリア。",
+                "【終了時の自動削除】: 経過日数（7日、14日、30日、60日）または容量上限（1GB、5GB、10GB）を指定してアプリ終了時に自動クリーンアップ。"
+            }));
+
             stack.Children.Add(CreateHelpSection("⚙️ 設定のインポート / エクスポート", new[]
             {
                 "【設定メニュー】: 画面左上の「設定（歯車）」ボタンからドロップダウンメニューを開きます。",
-                "【バックアップ・復元】: 「設定のエクスポート...」「設定のインポート...」でお気に入りや履歴、データベースをファイルとして保存・復元。"
+                "【バックアップ・復元】: 「設定のエクスポート...」「設定のインポート...」でお気に入りや履歴、外部プログラム設定、データベースをファイルとして保存・復元。"
             }));
         }
         else
@@ -1064,6 +1139,7 @@ public partial class MainWindow : Window
                 "[Set Rating]: Set rating from ★1 to ★5 or clear rating.",
                 "[Toggle Favorite]: Bookmark or unbookmark selected image.",
                 "[Copy / Cut / Paste]: Perform batch operations on selected images.",
+                "[Open with External App]: Open selected image directly in registered image editors.",
                 "[Open with Windows Photos]: Opens the file in default Windows Photos viewer.",
                 "[Show in Explorer]: Opens Windows File Explorer with the selected item highlighted."
             }));
@@ -1078,23 +1154,42 @@ public partial class MainWindow : Window
             {
                 "[Open]: Double-click a thumbnail to open in a separate window.",
                 "[Navigate]: Left/Right arrow keys, or mouse wheel.",
-                "[Zoom]: Hold Ctrl + Mouse wheel.",
-                "[Pan]: Mouse drag and drop to move the image.",
-                "[Favorite & Rating]: Press 'F' to toggle favorite, '0'-'5' to set rating.",
-                "[Toggle Info]: Right-click context menu, or press 'I' key to show/hide photo info overlay.",
-                "[Close]: Esc key."
+                "[Zoom]: Ctrl + Mouse Wheel to zoom in/out.",
+                "[Pan]: Drag and drop to pan zoomed images.",
+                "[Rating & Favorites]: Press 'F' to toggle favorite, '0'-'5' keys to set star rating.",
+                "[Info Overlay]: Press 'I' or use context menu to toggle photographic EXIF information overlay.",
+                "[Close]: Press Esc key."
             }));
 
-            stack.Children.Add(CreateHelpSection("🤖 AI Auto Classification", new[]
+            stack.Children.Add(CreateHelpSection("📷 High-Res RAW Image Previews & Auto-Rotation", new[]
             {
-                "[AI Classification]: Click the 'AI自動分類' button in the toolbar.",
-                "[Auto Categorize]: Classify images into categories (People, Landscape, Animal, Food, Vehicle, Building, Document) using ONNX Runtime or heuristic feature analysis."
+                "[Full-Res Previews]: Automatically extracts full-resolution previews from Canon CR3, Olympus ORF, Nikon NEF, Sony ARW, DNG, etc.",
+                "[Auto-Rotation]: Automatically detects camera orientation sensors (Exif Orientation) and rotates portrait/vertical photos accordingly."
             }));
 
-            stack.Children.Add(CreateHelpSection("⚙️ Import / Export Settings", new[]
+            stack.Children.Add(CreateHelpSection("🎨 External Program Integration", new[]
             {
-                "[Settings Menu]: Click the gear icon in the top header bar to access setting actions.",
-                "[Backup & Restore]: Export or import your user settings and database as a backup file."
+                "[Configure Apps]: Register favorite photo editors (Photoshop, GIMP, Paint, etc.) in Settings -> External Apps.",
+                "[Launch]: Right-click any photo and select 'Open with...' to launch with the selected editor."
+            }));
+
+            stack.Children.Add(CreateHelpSection("🤖 AI Auto-Classification", new[]
+            {
+                "[AI Auto-Classification]: Click 'AI Auto Classification' button in the toolbar.",
+                "[Automatic Categorization]: Classify images into People, Landscape, Animal, Food, Vehicle, Building, Document via ONNX Runtime GPU/CPU and copy/move to subfolders."
+            }));
+
+            stack.Children.Add(CreateHelpSection("💾 Thumbnail Cache Management", new[]
+            {
+                "[Manage Cache]: Open Settings -> 'Manage Cache...' to view disk usage and file counts.",
+                "[Bulk Cleanup]: Click 'Clear All Cache' to instantly purge disk and in-memory thumbnail caches.",
+                "[Auto-Cleanup on Exit]: Configure retention days (7, 14, 30, 60 days) or max size limits (1GB, 5GB, 10GB) to clean cache automatically on application close."
+            }));
+
+            stack.Children.Add(CreateHelpSection("⚙️ Settings Backup & Restore", new[]
+            {
+                "[Settings Menu]: Click the gear icon on the top-left toolbar.",
+                "[Export / Import]: Backup and restore favorites, history, external apps, and database as a ZIP archive."
             }));
         }
 

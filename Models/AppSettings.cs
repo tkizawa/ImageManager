@@ -33,5 +33,9 @@ namespace ImageManager.Models
         public string OllamaModelName { get; set; } = "llava";
 
         public System.Collections.Generic.List<ExternalApp> ExternalApps { get; set; } = new();
+
+        public bool AutoCleanCacheOnExit { get; set; } = false;
+        public int CacheCleanPeriodDays { get; set; } = 30;
+        public long CacheCleanMaxSizeBytes { get; set; } = 1073741824; // 1 GB
     }
 }

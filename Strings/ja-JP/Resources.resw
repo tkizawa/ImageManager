@@ -328,4 +328,10 @@
   <data name="ExternalAppsDialogTitle" xml:space="preserve">
     <value>外部プログラムの設定</value>
   </data>
+  <data name="ConfigureCacheMenu.Text" xml:space="preserve">
+    <value>キャッシュの管理...</value>
+  </data>
+  <data name="CacheManagementDialogTitle" xml:space="preserve">
+    <value>サムネイルのキャッシュ管理</value>
+  </data>
 </root>

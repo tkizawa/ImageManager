@@ -127,6 +127,28 @@ namespace ImageManager.Tests
         }
 
         [Fact]
+        public async Task GetEmbeddedJpegBytesAsync_StandardImage_CachesOnDisk()
+        {
+            // Arrange
+            string tempFile = Path.Combine(_tempDirectory, "test_standard.jpg");
+            byte[] dummyData = new byte[500];
+            dummyData[0] = 0xFF; dummyData[1] = 0xD8; // JPEG SOI
+            dummyData[498] = 0xFF; dummyData[499] = 0xD9; // JPEG EOI
+            File.WriteAllBytes(tempFile, dummyData);
+
+            string? cacheFilePath = RawThumbnailService.GetCacheFilePath(tempFile);
+            Assert.NotNull(cacheFilePath);
+            if (File.Exists(cacheFilePath)) File.Delete(cacheFilePath);
+
+            // Act
+            byte[]? result = await RawThumbnailService.GetEmbeddedJpegBytesAsync(tempFile);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.True(File.Exists(cacheFilePath));
+        }
+
+        [Fact]
         public async Task DiagnoseRealUserFile()
         {
             string folder = @"E:\KIZAWA\OneDrive - WoodStream Networks\01_写真\2026\2026-08\2026-08-14-江の島\CR3";

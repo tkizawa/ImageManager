@@ -18,11 +18,11 @@ namespace ImageManager
 
         public event EventHandler? SettingsChanged;
 
-        public ExternalAppsDialog(ISettingsService settingsService)
+        public ExternalAppsDialog(ISettingsService settingsService, Microsoft.UI.Xaml.XamlRoot? xamlRoot = null)
         {
             this.InitializeComponent();
             _settingsService = settingsService;
-            this.XamlRoot = App.MainWindow?.Content?.XamlRoot;
+            this.XamlRoot = xamlRoot ?? App.MainWindow?.Content?.XamlRoot;
 
             AppsListView.ItemsSource = _apps;
             LoadApps();

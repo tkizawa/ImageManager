@@ -38,6 +38,11 @@
                                     <FontIcon Glyph="&#xE7AC;"/>
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Uid="ConfigureCacheMenu" Text="キャッシュの管理..." Click="ConfigureCache_Click">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE74D;"/>
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
                             <MenuFlyoutSeparator />
                             <MenuFlyoutItem x:Uid="ExportSettingsMenu" Command="{Binding ExportSettingsCommand}">
                                 <MenuFlyoutItem.Icon>

@@ -328,4 +328,10 @@
   <data name="ExternalAppsDialogTitle" xml:space="preserve">
     <value>External App Settings</value>
   </data>
+  <data name="ConfigureCacheMenu.Text" xml:space="preserve">
+    <value>Manage Cache...</value>
+  </data>
+  <data name="CacheManagementDialogTitle" xml:space="preserve">
+    <value>Thumbnail Cache Management</value>
+  </data>
 </root>

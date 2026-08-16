@@ -256,8 +256,7 @@ public sealed partial class ImageWindow : Window
 
     private async void ConfigureExternalApps_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new ExternalAppsDialog(_settingsService);
-        dialog.XamlRoot = this.Content?.XamlRoot ?? App.MainWindow?.Content?.XamlRoot;
+        var dialog = new ExternalAppsDialog(_settingsService, this.Content?.XamlRoot ?? App.MainWindow?.Content?.XamlRoot);
         await dialog.ShowAsync();
     }
 
