@@ -35,6 +35,9 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 1. お気に入り・メタデータが再起動後に失われる不具合の修正
    ・アプリ再起動時にお気に入りフラグ等のメタデータが反映されない問題を修正しました（フォルダ識別子のSHA-256決定論的生成およびパス照合強化）。
    ・フォルダ再スキャン時に既存のメタデータ（お気に入り・レート等）が意図せず初期化・上書きされるのを防ぐ保護処理を強化しました。
+
+2. サムネイル表示でRAW画像の一部が表示されない不具合の修正
+   ・一部のRAW画像フォーマット（CR3 / ORF / NEF / ARW 等）においてサムネイルが正常に読み込めない・表示されない問題を修正しました。
 ```
 
 ---
@@ -70,4 +73,7 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 1. Fixed Metadata & Favorites Persistence Issue Across Restarts
    - Resolved an issue where favorite flags were not properly restored after restarting the application (improved deterministic SHA-256 folder ID generation and path matching).
    - Enhanced metadata protection to prevent existing ratings and favorites from being overwritten during folder re-scans.
+
+2. Fixed RAW Image Thumbnail Display Issue
+   - Fixed an issue where thumbnails for certain RAW image formats (CR3, ORF, NEF, ARW) failed to load or display properly in the thumbnail grid.
 ```
