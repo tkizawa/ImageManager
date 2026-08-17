@@ -23,7 +23,7 @@ namespace ImageManager.ViewModels
             CanPaste = !string.IsNullOrEmpty(value) && _clipboardFilePaths.Count > 0;
         }
 
-        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.0.0"}";
+        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.1.0"}";
 
         [ObservableProperty]
         private ObservableCollection<ImageFile> _images = new();

@@ -1,4 +1,4 @@
-# Microsoft Store リリースノート (What's New) - v1.1.0.0
+# Microsoft Store リリースノート (What's New) - v1.1.1.0
 
 Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新内容 (What's new)」へコピー＆ペーストしてご利用ください。
 
@@ -7,26 +7,34 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇯🇵 日本語 (ja-JP)
 
 ```text
-【バージョン 1.1.0.0 の更新内容】
+【バージョン 1.1.1.0 の更新内容】
 
-1. SQLite データベース管理およびライブラリの自動メタデータ同期機能の導入
-   ・画像のメタデータ（EXIF情報、AI分類カテゴリー、評価、お気に入り設定等）を高速なローカルSQLiteデータベース（imagemanager.db）で一元管理するようにメジャーアップデートを行いました。
+◆ 新機能・機能改善
+1. 写真のレート機能（★1～5）およびレートフィルターの追加
+   ・写真に 5 段階の星レート（★1～★5）または「レートなし (0)」を設定・管理できるようになりました。
+   ・プロパティ欄、右クリックメニュー、キーボードショートカット（「0」～「5」キー / テンキー）から素早く設定できます。
+   ・ツールバーに指定レート抽出用のフィルターを追加し、「お気に入りのみ」との組み合わせ絞り込み（AND条件）やレート順並び替えに対応しました。
 
-2. ライブラリフォルダ移動・名前変更への柔軟な追従および再選択機能
-   ・ライブラリに登録されたフォルダが見つからない（名前変更・移動された）際、再選択ダイアログを表示して即座に新フォルダへ接続できるように修正しました。
-   ・ライブラリツリーの右クリックメニューに「フォルダの場所を変更...」を追加し、いつでもメタデータを維持したまま新しい参照パスへ再紐付け可能です。
+2. サムネイルキャッシュ機能およびキャッシュ管理ダイアログの追加
+   ・RAW画像に加え一般画像（JPEG / PNG / WebP / BMP / GIF 等）のローカルディスクキャッシュ生成・再利用に対応し、大量の写真一覧表示を大幅に高速化しました。
+   ・「ツール」メニューにキャッシュ管理ダイアログを追加し、現在のキャッシュ容量・ファイル数の確認およびワンクリックでの一括削除が可能になりました。
+   ・アプリ終了時の自動キャッシュクリーンアップ（保持期間：7/14/30/60日、容量上限：1GB/5GB/10GB指定）を設定できるようになりました。
 
-3. 画像ビュアーの操作性向上およびツールチップ表示の改善
-   ・大画面画像ビュアー背景での不要なツールチップ表示を抑制し、「右クリックで画像情報の表示・非表示の切り替え」ガイドツールチップを表示するように改善しました。
+3. 設定のエクスポート・インポートにデータベース（SQLite）バックアップを追加
+   ・ZIPアーカイブ形式（*.zip）によるアプリ設定とメタデータデータベース（imagemanager.db）の一括バックアップ・復元に対応しました。
+   ・従来のJSON単体ファイル（*.json）のエクスポート・インポート互換性も保持しています。
 
-4. 写真の「お気に入り」機能の追加
-   ・サムネイル右上の星ボタン、右クリックメニュー「お気に入りの切り替え」、または拡大ビュアーでの「F」キーからワンクリックでお気に入り登録・解除ができるようになりました。
-   ・ツールバーの「お気に入りのみ」ボタンで、お気に入りに指定した写真のみを瞬時に抽出表示できます。
+4. 全画面画像ビュアーでのお気に入り切り替え対応
+   ・拡大ビュアー表示中に「F」キー押下または右クリックメニューから、閲覧中画像のお気に入り状態を即座に切り替えられるようになりました。
 
-5. 写真の「レート（★1～5）」およびレートフィルター機能の追加
-   ・写真に 5 段階の星レート（★1～★5）および「レートなし (0)」を設定・管理できるようになりました。右ペインの星ボタン、右クリックメニュー、キーボードの「0」～「5」キー（テンキー対応）から素早く設定できます。
-   ・ツールバーにレートフィルター用ドロップダウンを追加し、指定レートの写真のみを絞り込み表示できます。「お気に入りのみ」ボタンとの併用時には両方の条件を満たす写真のみを抽出（AND条件）可能です。
-   ・並び替えに「レート順（昇順・降順）」を追加しました。
+5. RAW画像（CR3 / ORF / NEF / ARW）の表示画質向上と自動回転
+   ・RAW画像のサムネイルおよびプレビュー表示の高画質化・安定化を行いました。
+   ・RAW画像のExif Orientation（回転向き）メタデータを解析し、正しい向きへ自動回転して表示するよう改善しました。
+
+◆ 不具合修正・安定性向上
+1. お気に入り・メタデータが再起動後に失われる不具合の修正
+   ・アプリ再起動時にお気に入りフラグ等のメタデータが反映されない問題を修正しました（フォルダ識別子のSHA-256決定論的生成およびパス照合強化）。
+   ・フォルダ再スキャン時に既存のメタデータ（お気に入り・レート等）が意図せず初期化・上書きされるのを防ぐ保護処理を強化しました。
 ```
 
 ---
@@ -34,24 +42,32 @@ Microsoft Store (Partner Center) のアプリ更新時に「新機能・更新�
 ## 🇺🇸 英語 (en-US)
 
 ```text
-[What's New in Version 1.1.0.0]
+[What's New in Version 1.1.1.0]
 
-1. SQLite Database Integration & Automatic Metadata Sync
-   - Major update adding a fast, local SQLite database (imagemanager.db) to manage image metadata, EXIF properties, AI classifications, ratings, and favorites.
+◆ New Features & Enhancements
+1. 5-Star Photo Rating System & Rating Filter
+   - Added support for rating photos from 1 to 5 stars (★1 to ★5) or clearing ratings (0).
+   - Easily set ratings via the properties pane, thumbnail context menu, or keyboard shortcuts ('0' to '5' keys / numpad).
+   - Added toolbar rating filter dropdown supporting combined filtering with Favorites (AND condition) and sorting by rating (Ascending / Descending).
 
-2. Flexible Library Folder Relocation & Re-selection Dialog
-   - Added missing folder detection with an interactive re-selection dialog when a library folder is renamed or moved.
-   - Added 'Change Folder Location...' to the library tree context menu to re-bind folders while preserving existing metadata.
+2. Thumbnail Disk Caching & Cache Management Dialog
+   - Added high-speed local disk thumbnail caching for all standard image formats (JPEG, PNG, WebP, BMP, GIF) in addition to RAW files, significantly accelerating grid rendering.
+   - Added a Cache Management dialog to view current cache size and file count, with one-click bulk cache purging.
+   - Added automatic cache cleanup on application exit (configurable retention periods: 7/14/30/60 days, size limits: 1GB/5GB/10GB).
 
-3. Image Viewer UX & Tooltip Enhancements
-   - Suppressed auto-generated background tooltips and added helpful guidance tooltips for toggling photo information overlay.
+3. SQLite Database Backup with Settings Export/Import
+   - Added full backup and restore support for app settings and the SQLite metadata database (imagemanager.db) using ZIP archive format (*.zip).
+   - Maintained backward compatibility for importing and exporting legacy JSON configuration files (*.json).
 
-4. Photo Favorites Feature
-   - Easily bookmark or unbookmark photos via the top-right star icon on thumbnails, context menu, or by pressing 'F' in the image viewer.
-   - Use the 'Favorites Only' toolbar toggle to quickly view only your bookmarked photos.
+4. Toggle Favorites in Fullscreen Image Viewer
+   - Easily toggle favorite status while viewing images in fullscreen mode using the 'F' key or right-click context menu.
 
-5. 5-Star Rating System & Rating Filter
-   - Rate photos with 1 to 5 stars (★1 to ★5) or clear ratings from the properties pane, context menu, or keyboard shortcuts ('0' to '5' keys / numpad).
-   - Filter photos by star rating from the toolbar dropdown, supporting seamless combination with Favorites (AND condition).
-   - Added 'Sort by Rating' (Ascending / Descending).
+5. High-Quality RAW Previews & Automatic Exif Orientation Rotation
+   - Improved thumbnail and preview rendering quality and stability for RAW formats (CR3, ORF, NEF, ARW).
+   - Added automatic rotation based on Exif Orientation metadata for RAW photos.
+
+◆ Bug Fixes & Stability
+1. Fixed Metadata & Favorites Persistence Issue Across Restarts
+   - Resolved an issue where favorite flags were not properly restored after restarting the application (improved deterministic SHA-256 folder ID generation and path matching).
+   - Enhanced metadata protection to prevent existing ratings and favorites from being overwritten during folder re-scans.
 ```
