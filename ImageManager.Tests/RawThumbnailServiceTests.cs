@@ -123,12 +123,50 @@ namespace ImageManager.Tests
 
             string? cacheFilePath = RawThumbnailService.GetCacheFilePath(tempFile);
             Assert.NotNull(cacheFilePath);
-            Assert.EndsWith($"raw_v10_{key1}.jpg", cacheFilePath);
+            Assert.EndsWith($"raw_v10_{key1}.cr3", cacheFilePath);
 
-            // 標準画像（.jpg）はディスクキャッシュ対象外のため null が返る
+            // 標準画像（.jpg）もキャッシュパスが取得できる
             string jpgFile = Path.Combine(_tempDirectory, "cache_key_test.jpg");
             File.WriteAllText(jpgFile, "test jpg data");
-            Assert.Null(RawThumbnailService.GetCacheFilePath(jpgFile));
+            string? jpgCachePath = RawThumbnailService.GetCacheFilePath(jpgFile);
+            Assert.NotNull(jpgCachePath);
+            Assert.EndsWith($"raw_v10_{RawThumbnailService.GetThumbnailCacheKey(jpgFile)}.jpg", jpgCachePath);
+        }
+
+        [Fact]
+        public async Task CacheStandardFileAsync_CopiesFileDirectlyToCache()
+        {
+            // Arrange
+            string sourceFile = Path.Combine(_tempDirectory, "source_photo.jpg");
+            byte[] sourceData = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x01, 0x02, 0x03, 0xFF, 0xD9 };
+            File.WriteAllBytes(sourceFile, sourceData);
+
+            string? cacheFilePath = RawThumbnailService.GetCacheFilePath(sourceFile);
+            Assert.NotNull(cacheFilePath);
+            if (File.Exists(cacheFilePath)) File.Delete(cacheFilePath);
+
+            // Act
+            await RawThumbnailService.CacheStandardFileAsync(sourceFile, cacheFilePath);
+
+            // Assert
+            Assert.True(File.Exists(cacheFilePath));
+            byte[] cachedData = File.ReadAllBytes(cacheFilePath);
+            Assert.Equal(sourceData, cachedData);
+
+            // Cleanup
+            if (File.Exists(cacheFilePath)) File.Delete(cacheFilePath);
+        }
+
+        [Fact]
+        public void ShouldCacheFile_EvaluatesCorrectly()
+        {
+            // RAWファイルは常にtrue
+            string rawFile = Path.Combine(_tempDirectory, "test.cr3");
+            File.WriteAllText(rawFile, "dummy");
+            Assert.True(RawThumbnailService.ShouldCacheFile(rawFile));
+
+            // UNCネットワークパスはtrue
+            Assert.True(RawThumbnailService.ShouldCacheFile(@"\\nas\share\photo.jpg"));
         }
 
         [Fact]

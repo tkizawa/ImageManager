@@ -68,10 +68,83 @@ namespace ImageManager.Services
 
         public static string? GetCacheFilePath(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !IsRawFile(filePath)) return null;
+            if (string.IsNullOrEmpty(filePath) || !IsSupportedImage(filePath)) return null;
             string key = GetThumbnailCacheKey(filePath);
             if (string.IsNullOrEmpty(key)) return null;
-            return Path.Combine(CacheDirectory, $"raw_v10_{key}.jpg");
+            string ext = Path.GetExtension(filePath);
+            if (string.IsNullOrEmpty(ext)) ext = ".jpg";
+            return Path.Combine(CacheDirectory, $"raw_v10_{key}{ext}");
+        }
+
+        public static bool ShouldCacheFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return false;
+            if (IsRawFile(filePath)) return true;
+
+            try
+            {
+                // UNCネットワークパス (例: \\nas\photos\...)
+                if (filePath.StartsWith(@"\\") || filePath.StartsWith("//"))
+                    return true;
+
+                string? fileRoot = Path.GetPathRoot(filePath);
+                string? cacheRoot = Path.GetPathRoot(CacheDirectory);
+
+                if (!string.IsNullOrEmpty(fileRoot))
+                {
+                    var driveInfo = new DriveInfo(fileRoot);
+                    // ネットワークドライブ、USB/SDカード、光学ドライブ等はキャッシュ対象
+                    if (driveInfo.DriveType == DriveType.Network ||
+                        driveInfo.DriveType == DriveType.Removable ||
+                        driveInfo.DriveType == DriveType.CDRom)
+                    {
+                        return true;
+                    }
+                }
+
+                // キャッシュ先と異なるドライブ（別HDDや外付けなど）にある場合も高速化のためキャッシュ対象
+                if (!string.IsNullOrEmpty(fileRoot) && !string.IsNullOrEmpty(cacheRoot) &&
+                    !string.Equals(fileRoot, cacheRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static async Task CacheStandardFileAsync(string filePath, string cacheFilePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || string.IsNullOrEmpty(cacheFilePath)) return;
+            if (File.Exists(cacheFilePath)) return;
+
+            try
+            {
+                string tempCachePath = cacheFilePath + ".tmp";
+                await using (var sourceStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true))
+                await using (var destStream = new FileStream(tempCachePath, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024, useAsync: true))
+                {
+                    await sourceStream.CopyToAsync(destStream);
+                }
+                
+                if (File.Exists(tempCachePath))
+                {
+                    File.Move(tempCachePath, cacheFilePath, overwrite: true);
+                }
+            }
+            catch
+            {
+                try
+                {
+                    string tempCachePath = cacheFilePath + ".tmp";
+                    if (File.Exists(tempCachePath)) File.Delete(tempCachePath);
+                }
+                catch { }
+            }
         }
 
         public static bool IsRawFile(string filePath)
@@ -844,7 +917,18 @@ namespace ImageManager.Services
             {
                 if (!isRaw)
                 {
+                    if (cacheFilePath != null && File.Exists(cacheFilePath))
+                    {
+                        RunOnUI(() => bitmapImage.UriSource = new Uri(cacheFilePath));
+                        return;
+                    }
+
                     RunOnUI(() => bitmapImage.UriSource = new Uri(filePath));
+
+                    if (cacheFilePath != null && ShouldCacheFile(filePath))
+                    {
+                        _ = Task.Run(() => CacheStandardFileAsync(filePath, cacheFilePath));
+                    }
                     return;
                 }
 
@@ -903,14 +987,23 @@ namespace ImageManager.Services
             }
 
             // 2. Thumbnail view (decodeWidth > 0)
+            RunOnUI(() => bitmapImage.DecodePixelWidth = decodeWidth);
+
             if (!isRaw)
             {
-                // For standard image files (JPG, PNG, etc.), display immediately with hardware accelerated decode
-                RunOnUI(() =>
+                if (cacheFilePath != null && File.Exists(cacheFilePath))
                 {
-                    bitmapImage.DecodePixelWidth = decodeWidth;
-                    bitmapImage.UriSource = new Uri(filePath);
-                });
+                    RunOnUI(() => bitmapImage.UriSource = new Uri(cacheFilePath));
+                    return;
+                }
+
+                // For standard image files (JPG, PNG, etc.), display immediately with hardware accelerated decode
+                RunOnUI(() => bitmapImage.UriSource = new Uri(filePath));
+
+                if (cacheFilePath != null && ShouldCacheFile(filePath))
+                {
+                    _ = Task.Run(() => CacheStandardFileAsync(filePath, cacheFilePath));
+                }
                 return;
             }
 
