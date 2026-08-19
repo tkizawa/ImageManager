@@ -109,7 +109,7 @@ namespace ImageManager.Tests
         public void GetThumbnailCacheKey_ReturnsValidSha256HashForExistingFile()
         {
             // Arrange
-            string tempFile = Path.Combine(_tempDirectory, "cache_key_test.jpg");
+            string tempFile = Path.Combine(_tempDirectory, "cache_key_test.cr3");
             File.WriteAllText(tempFile, "test image data for cache key");
 
             // Act
@@ -123,17 +123,36 @@ namespace ImageManager.Tests
 
             string? cacheFilePath = RawThumbnailService.GetCacheFilePath(tempFile);
             Assert.NotNull(cacheFilePath);
-            Assert.EndsWith($"raw_v9_{key1}.jpg", cacheFilePath);
+            Assert.EndsWith($"raw_v10_{key1}.jpg", cacheFilePath);
+
+            // 標準画像（.jpg）はディスクキャッシュ対象外のため null が返る
+            string jpgFile = Path.Combine(_tempDirectory, "cache_key_test.jpg");
+            File.WriteAllText(jpgFile, "test jpg data");
+            Assert.Null(RawThumbnailService.GetCacheFilePath(jpgFile));
         }
 
         [Fact]
-        public async Task GetEmbeddedJpegBytesAsync_StandardImage_CachesOnDisk()
+        public async Task GetEmbeddedJpegBytesAsync_RawImage_CachesOnDisk()
         {
             // Arrange
-            string tempFile = Path.Combine(_tempDirectory, "test_standard.jpg");
-            byte[] dummyData = new byte[500];
-            dummyData[0] = 0xFF; dummyData[1] = 0xD8; // JPEG SOI
-            dummyData[498] = 0xFF; dummyData[499] = 0xD9; // JPEG EOI
+            string tempFile = Path.Combine(_tempDirectory, "test_raw.cr2");
+            byte[] jpegBytes = new byte[2000];
+            jpegBytes[0] = 0xFF; jpegBytes[1] = 0xD8;
+            jpegBytes[2] = 0xFF; jpegBytes[3] = 0xC0; // SOF0
+            jpegBytes[4] = 0x00; jpegBytes[5] = 0x0B; jpegBytes[6] = 0x08;
+            jpegBytes[7] = 0x01; jpegBytes[8] = 0x00; // H=256
+            jpegBytes[9] = 0x01; jpegBytes[10] = 0x00; // W=256
+            jpegBytes[11] = 0x03; jpegBytes[12] = 0x01; jpegBytes[13] = 0x11; jpegBytes[14] = 0x00;
+            jpegBytes[15] = 0xFF; jpegBytes[16] = 0xDA; // SOS
+            for (int i = 17; i < 1998; i++)
+            {
+                jpegBytes[i] = (byte)(i % 256);
+            }
+            jpegBytes[1998] = 0xFF;
+            jpegBytes[1999] = 0xD9;
+
+            byte[] dummyData = new byte[500 + jpegBytes.Length];
+            System.Buffer.BlockCopy(jpegBytes, 0, dummyData, 500, jpegBytes.Length);
             File.WriteAllBytes(tempFile, dummyData);
 
             string? cacheFilePath = RawThumbnailService.GetCacheFilePath(tempFile);

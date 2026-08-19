@@ -160,27 +160,20 @@ namespace ImageManager.Models
                     }
                 }
 
-                // Check disk cache first for ALL images (RAW and Standard)
+                bool isRaw = RawThumbnailService.IsRawFile(FilePath);
+
+                // 標準画像（JPG, PNG, WebP等）は直接ファイルからネイティブに高速・高品質描画
+                if (!isRaw)
+                {
+                    SetUriSource(FilePath);
+                    return;
+                }
+
+                // Check disk cache for RAW images
                 string? cacheFilePath = RawThumbnailService.GetCacheFilePath(FilePath);
                 if (cacheFilePath != null && File.Exists(cacheFilePath))
                 {
                     SetUriSource(cacheFilePath);
-                    return;
-                }
-
-                bool isRaw = RawThumbnailService.IsRawFile(FilePath);
-
-                if (!isRaw)
-                {
-                    SetUriSource(FilePath);
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await RawThumbnailService.GetEmbeddedJpegBytesAsync(FilePath);
-                        }
-                        catch { }
-                    });
                     return;
                 }
 

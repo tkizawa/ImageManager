@@ -68,9 +68,10 @@ namespace ImageManager.Services
 
         public static string? GetCacheFilePath(string filePath)
         {
+            if (string.IsNullOrEmpty(filePath) || !IsRawFile(filePath)) return null;
             string key = GetThumbnailCacheKey(filePath);
             if (string.IsNullOrEmpty(key)) return null;
-            return Path.Combine(CacheDirectory, $"raw_v9_{key}.jpg");
+            return Path.Combine(CacheDirectory, $"raw_v10_{key}.jpg");
         }
 
         public static bool IsRawFile(string filePath)
@@ -260,11 +261,7 @@ namespace ImageManager.Services
             {
                 try
                 {
-                    jpegBytes = await CreateStandardImageThumbnailBytesAsync(filePath, 1024);
-                    if (jpegBytes == null || jpegBytes.Length == 0)
-                    {
-                        jpegBytes = await File.ReadAllBytesAsync(filePath);
-                    }
+                    jpegBytes = await File.ReadAllBytesAsync(filePath);
                 }
                 catch { }
             }
@@ -273,7 +270,7 @@ namespace ImageManager.Services
             {
                 CacheJpegBytes(filePath, jpegBytes);
 
-                if (cacheFilePath != null)
+                if (isRaw && cacheFilePath != null)
                 {
                     try
                     {
@@ -289,28 +286,6 @@ namespace ImageManager.Services
         public static async Task<byte[]?> CreateStandardImageThumbnailBytesAsync(string filePath, uint maxDimension = 1024)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return null;
-
-            try
-            {
-                var file = await StorageFile.GetFileFromPathAsync(filePath);
-                using var thumb = await file.GetScaledImageAsThumbnailAsync(
-                    Windows.Storage.FileProperties.ThumbnailMode.PicturesView,
-                    maxDimension,
-                    Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
-
-                if (thumb != null && thumb.Size > 100)
-                {
-                    using var reader = new DataReader(thumb.GetInputStreamAt(0));
-                    await reader.LoadAsync((uint)thumb.Size);
-                    byte[] bytes = new byte[thumb.Size];
-                    reader.ReadBytes(bytes);
-                    if (bytes.Length > 100)
-                    {
-                        return bytes;
-                    }
-                }
-            }
-            catch { }
 
             try
             {
@@ -335,8 +310,11 @@ namespace ImageManager.Services
                     ColorManagementMode.ColorManageToSRgb);
 
                 byte[] pixels = pixelData.DetachPixelData();
-                uint outWidth = transform.ScaledWidth > 0 ? transform.ScaledWidth : decoder.PixelWidth;
-                uint outHeight = transform.ScaledHeight > 0 ? transform.ScaledHeight : decoder.PixelHeight;
+                uint scaledW = transform.ScaledWidth > 0 ? transform.ScaledWidth : decoder.PixelWidth;
+                uint scaledH = transform.ScaledHeight > 0 ? transform.ScaledHeight : decoder.PixelHeight;
+                bool isSwapped = decoder.PixelWidth != decoder.OrientedPixelWidth;
+                uint outWidth = isSwapped ? scaledH : scaledW;
+                uint outHeight = isSwapped ? scaledW : scaledH;
 
                 using var memStream = new InMemoryRandomAccessStream();
                 var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, memStream);
@@ -369,27 +347,6 @@ namespace ImageManager.Services
             try
             {
                 var file = await StorageFile.GetFileFromPathAsync(filePath);
-
-                try
-                {
-                    using var thumbnail = await file.GetScaledImageAsThumbnailAsync(
-                        Windows.Storage.FileProperties.ThumbnailMode.PicturesView,
-                        maxDimension,
-                        Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
-
-                    if (thumbnail != null && thumbnail.Size > 100)
-                    {
-                        using var reader = new DataReader(thumbnail.GetInputStreamAt(0));
-                        await reader.LoadAsync((uint)thumbnail.Size);
-                        byte[] bytes = new byte[thumbnail.Size];
-                        reader.ReadBytes(bytes);
-                        if (bytes.Length > 100)
-                        {
-                            return bytes;
-                        }
-                    }
-                }
-                catch { }
 
                 try
                 {
@@ -430,8 +387,11 @@ namespace ImageManager.Services
                         ColorManagementMode.ColorManageToSRgb);
 
                     byte[] pixels = pixelData.DetachPixelData();
-                    uint outWidth = transform.ScaledWidth > 0 ? transform.ScaledWidth : decoder.PixelWidth;
-                    uint outHeight = transform.ScaledHeight > 0 ? transform.ScaledHeight : decoder.PixelHeight;
+                    uint scaledW = transform.ScaledWidth > 0 ? transform.ScaledWidth : decoder.PixelWidth;
+                    uint scaledH = transform.ScaledHeight > 0 ? transform.ScaledHeight : decoder.PixelHeight;
+                    bool isSwapped = decoder.PixelWidth != decoder.OrientedPixelWidth;
+                    uint outWidth = isSwapped ? scaledH : scaledW;
+                    uint outHeight = isSwapped ? scaledW : scaledH;
 
                     using var memStream = new InMemoryRandomAccessStream();
                     var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, memStream);
@@ -943,9 +903,20 @@ namespace ImageManager.Services
             }
 
             // 2. Thumbnail view (decodeWidth > 0)
+            if (!isRaw)
+            {
+                // For standard image files (JPG, PNG, etc.), display immediately with hardware accelerated decode
+                RunOnUI(() =>
+                {
+                    bitmapImage.DecodePixelWidth = decodeWidth;
+                    bitmapImage.UriSource = new Uri(filePath);
+                });
+                return;
+            }
+
             RunOnUI(() => bitmapImage.DecodePixelWidth = decodeWidth);
 
-            // Check disk cache first for ALL images (RAW and Standard)
+            // Check disk cache for RAW images
             if (cacheFilePath != null && File.Exists(cacheFilePath))
             {
                 RunOnUI(() => bitmapImage.UriSource = new Uri(cacheFilePath));
@@ -1003,20 +974,6 @@ namespace ImageManager.Services
                         catch { }
                     });
                 }
-            }
-            else
-            {
-                // For standard image files (JPG, PNG, etc.), display immediately and cache on disk in background
-                RunOnUI(() => bitmapImage.UriSource = new Uri(filePath));
-
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await GetEmbeddedJpegBytesAsync(filePath);
-                    }
-                    catch { }
-                });
             }
         }
     }
