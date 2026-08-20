@@ -40,7 +40,7 @@ namespace ImageManager.ViewModels
         }
 
         /// <summary>アセンブリから取得したアプリケーションバージョン文字列</summary>
-        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.1.0"}";
+        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.2.0"}";
 
         /// <summary>現在表示中の画像ファイル一覧コレクション</summary>
         [ObservableProperty]
