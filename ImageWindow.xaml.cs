@@ -8,6 +8,16 @@ using Microsoft.UI;
 
 namespace ImageManager;
 
+/// <summary>
+/// 単一画像を高解像度・原寸で閲覧するためのプレビュー専用ウィンドウクラス。
+/// 
+/// 主な機能：
+/// 1. ウィンドウ位置・サイズの永続化と次回起動時の復元（プロジェクト規約準拠）
+/// 2. マウスホイールによる前後画像切り替え、Ctrl+ホイールによるスムーズズーム
+/// 3. マウスドラッグによる自由な画像パン（位置移動）
+/// 4. キーボードショートカット（左右矢印/Space/BSで画像送り、F/IキーでExif情報表示切替、0〜5でレーティング付与、Escで閉じる）
+/// 5. 右クリックコンテキストメニューからの外部アプリケーション連携
+/// </summary>
 public sealed partial class ImageWindow : Window
 {
     private AppWindow _appWindow = null!;
@@ -17,6 +27,12 @@ public sealed partial class ImageWindow : Window
     private bool _isDragging = false;
     private Windows.Foundation.Point _lastPointerPosition;
 
+    /// <summary>
+    /// <see cref="ImageWindow"/> クラスの新しいインスタンスを初期化します。
+    /// 前回のウィンドウ位置・サイズおよびオーバーレイ設定を復元します。
+    /// </summary>
+    /// <param name="viewModel">メインViewModelインスタンス</param>
+    /// <param name="settingsService">設定管理サービス</param>
     public ImageWindow(ViewModels.MainViewModel viewModel, Services.ISettingsService settingsService)
     {
         this.InitializeComponent();
@@ -33,7 +49,7 @@ public sealed partial class ImageWindow : Window
             UpdateDisplayedImage(_viewModel.SelectedImage);
         }
 
-        // 初期ウィンドウサイズと位置の設定
+        // プロジェクト規約: 終了時のウィンドウサイズと位置を復元
         var settings = _settingsService.Load();
         if (!double.IsNaN(settings.ImageWindowWidth) && settings.ImageWindowWidth > 0 &&
             !double.IsNaN(settings.ImageWindowHeight) && settings.ImageWindowHeight > 0)
@@ -50,6 +66,7 @@ public sealed partial class ImageWindow : Window
             _appWindow.Move(new Windows.Graphics.PointInt32((int)settings.ImageWindowLeft, (int)settings.ImageWindowTop));
         }
 
+        // 情報オーバーレイの表示状態を復元
         bool showInfo = settings.ShowImageWindowInfo;
         InfoOverlayBorder.Visibility = showInfo ? Visibility.Visible : Visibility.Collapsed;
         ToggleInfoMenuItem.IsChecked = showInfo;
@@ -57,6 +74,9 @@ public sealed partial class ImageWindow : Window
         this.Closed += ImageWindow_Closed;
     }
 
+    /// <summary>
+    /// ウィンドウ終了時に現在の位置およびサイズを設定へ保存します（プロジェクト規約準拠）。
+    /// </summary>
     private void ImageWindow_Closed(object sender, WindowEventArgs args)
     {
         var settings = _settingsService.Load();
@@ -67,6 +87,10 @@ public sealed partial class ImageWindow : Window
         _settingsService.Save(settings);
     }
 
+    /// <summary>
+    /// ウィンドウに表示する画像を指定モデルに更新し、原寸デコードおよびズーム・パンのリセットを行います。
+    /// </summary>
+    /// <param name="imageFile">表示対象の画像モデル</param>
     private void UpdateDisplayedImage(Models.ImageFile imageFile)
     {
         _appWindow.Title = imageFile.FileName;
@@ -75,11 +99,12 @@ public sealed partial class ImageWindow : Window
         {
             var bitmapImage = new BitmapImage();
             FullImage.Source = bitmapImage;
+            // 原寸（decodeWidth = 0）で高品質非同期読み込み
             _ = Services.RawThumbnailService.LoadBitmapImageAsync(bitmapImage, imageFile.FilePath, 0);
             
             _ = imageFile.LoadExifAsync();
 
-            // 画像切り替え時はズームと位置をデフォルト（ウィンドウに収まるサイズ）にリセット
+            // 画像切り替え時はズームと位置をデフォルト（1.0倍・原点）にリセット
             ImageTransform.ScaleX = 1.0;
             ImageTransform.ScaleY = 1.0;
             ImageTransform.TranslateX = 0;
@@ -87,32 +112,37 @@ public sealed partial class ImageWindow : Window
         }
         catch (Exception)
         {
-            // 画像ロードエラー時の処理
+            // 画像ロード失敗時
         }
     }
 
+    /// <summary>キーボードショートカット（Iキー）によるExifオーバーレイ表示切り替え</summary>
     private void ToggleInfoOverlay_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
         ToggleInfoDisplay();
     }
 
+    /// <summary>メニュー項目クリックによるExifオーバーレイ表示切り替え</summary>
     private void ToggleInfoMenuItem_Click(object sender, RoutedEventArgs e)
     {
         ToggleInfoDisplay();
     }
 
+    /// <summary>キーボードショートカット（Fキー）によるお気に入り切り替え</summary>
     private void ToggleFavorite_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
         ToggleSelectedImageFavorite();
     }
 
+    /// <summary>メニュー項目クリックによるお気に入り切り替え</summary>
     private void ToggleFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
     {
         ToggleSelectedImageFavorite();
     }
 
+    /// <summary>メニュー項目クリックによるレーティング設定</summary>
     private void SetRatingMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem item && item.Tag is string tagStr && int.TryParse(tagStr, out int rating))
@@ -121,6 +151,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>キーボード数字キー（0〜5 / テンキー0〜5）によるレーティング即時反映</summary>
     private void RatingKey_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
@@ -136,6 +167,7 @@ public sealed partial class ImageWindow : Window
         SetSelectedImageRating(rating);
     }
 
+    /// <summary>表示中画像のレーティング値を設定します。</summary>
     private void SetSelectedImageRating(int rating)
     {
         if (_viewModel?.SelectedImage != null)
@@ -144,6 +176,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>表示中画像のお気に入り状態をトグル反転します。</summary>
     private void ToggleSelectedImageFavorite()
     {
         if (_viewModel?.SelectedImage != null)
@@ -152,6 +185,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>Exif情報オーバーレイの表示/非表示を切り替え、設定に保存します。</summary>
     private void ToggleInfoDisplay()
     {
         bool isCurrentlyVisible = InfoOverlayBorder.Visibility == Visibility.Visible;
@@ -165,6 +199,7 @@ public sealed partial class ImageWindow : Window
         _settingsService.Save(settings);
     }
 
+    /// <summary>Windows標準の「フォト」アプリで現在の画像を開きます。</summary>
     private async void OpenWithPhotosMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var currentImage = _viewModel.SelectedImage;
@@ -186,6 +221,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>エクスプローラーで現在の画像ファイルを選択状態で開きます。</summary>
     private void ShowInExplorerMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var currentImage = _viewModel.SelectedImage;
@@ -208,6 +244,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>コンテキストメニューオープン時に登録済み外部アプリ一覧を動的に生成します。</summary>
     private void ContextFlyout_Opening(object sender, object e)
     {
         var currentImage = _viewModel.SelectedImage;
@@ -217,6 +254,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>外部アプリケーションメニュー項目を構築します。</summary>
     private void PopulateExternalAppsMenu(MenuFlyoutSubItem subMenu, Models.ImageFile imageFile)
     {
         subMenu.Items.Clear();
@@ -246,6 +284,7 @@ public sealed partial class ImageWindow : Window
         subMenu.Items.Add(configItem);
     }
 
+    /// <summary>外部アプリ起動メニュー項目クリック時のハンドラ</summary>
     private void ExternalAppItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem item && item.Tag is (Models.ExternalApp app, Models.ImageFile imageFile))
@@ -254,24 +293,31 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>外部アプリ設定ダイアログを表示します。</summary>
     private async void ConfigureExternalApps_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new ExternalAppsDialog(_settingsService, this.Content?.XamlRoot ?? App.MainWindow?.Content?.XamlRoot);
         await dialog.ShowAsync();
     }
 
+    /// <summary>次の画像へ進むショートカット（右矢印 / PageDown）</summary>
     private void NextImage_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
         MoveToNextImage();
     }
 
+    /// <summary>前の画像へ戻るショートカット（左矢印 / PageUp）</summary>
     private void PreviousImage_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
         MoveToPreviousImage();
     }
 
+    /// <summary>
+    /// マウスホイール操作ハンドラ。
+    /// Ctrl+ホイールでズーム、通常ホイールで前後の画像へ移動します。
+    /// </summary>
     private void Image_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         var isCtrlPressed = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
@@ -280,16 +326,14 @@ public sealed partial class ImageWindow : Window
 
         if (isCtrlPressed)
         {
-            // ズーム処理
+            // ズーム処理（下限1.0倍）
             double zoomFactor = delta > 0 ? 1.1 : 1 / 1.1;
-            double newScale = Math.Max(1.0, ImageTransform.ScaleX * zoomFactor); // 下限は1.0 (ウィンドウに収まるサイズ)
+            double newScale = Math.Max(1.0, ImageTransform.ScaleX * zoomFactor);
 
-            // マウス位置を中心にズームするための計算 (簡易版)
-            // 実際はTranslateX/Yの調整も必要だが、ここではシンプルに中央基準に近いズームとする
             ImageTransform.ScaleX = newScale;
             ImageTransform.ScaleY = newScale;
             
-            // スケールが1.0に戻った場合は位置も中央にリセットする
+            // 等倍に戻った場合は位置を中央リセット
             if (newScale <= 1.0)
             {
                 ImageTransform.TranslateX = 0;
@@ -300,7 +344,7 @@ public sealed partial class ImageWindow : Window
             return;
         }
 
-        // Ctrlキーが押されていない場合は、前後画像の切り替えを行う
+        // 前後画像の切り替え
         if (delta < 0)
         {
             MoveToNextImage();
@@ -313,6 +357,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>次の画像へ切り替えます。</summary>
     private void MoveToNextImage()
     {
         var images = _viewModel.Images;
@@ -327,6 +372,7 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>前の画像へ切り替えます。</summary>
     private void MoveToPreviousImage()
     {
         var images = _viewModel.Images;
@@ -341,12 +387,16 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>Escキー押下時にウィンドウを閉じます。</summary>
     private void CloseWindow_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
         this.Close();
     }
 
+    /// <summary>
+    /// マウスポインター押下ハンドラ。ドラッグによるパン移動を開始します。
+    /// </summary>
     private void Image_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         var pointerPoint = e.GetCurrentPoint(this.Content);
@@ -363,6 +413,9 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>
+    /// マウスポインター移動ハンドラ。画像をドラッグ移動（パン）させます。
+    /// </summary>
     private void Image_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         if (_isDragging)
@@ -381,6 +434,9 @@ public sealed partial class ImageWindow : Window
         }
     }
 
+    /// <summary>
+    /// マウスポインター解放ハンドラ。ドラッグ移動を終了します。
+    /// </summary>
     private void Image_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         if (_isDragging)

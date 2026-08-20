@@ -8,9 +8,18 @@ using ImageManager.Models;
 
 namespace ImageManager.Services
 {
+    /// <summary>
+    /// SQLite データベース（imagemanager.db）を使用した画像メタデータ、Exif情報、お気に入り・レーティング、
+    /// ライブラリパス追跡およびキャッシュの永続化・クエリ処理を提供するサービスクラス。
+    /// ファイルの移動・リネーム検知（Path Tracking）や高速バッチ同期機能を備えています。
+    /// </summary>
     public class DatabaseService
     {
         private static DatabaseService? _instance;
+
+        /// <summary>
+        /// <see cref="DatabaseService"/> のシングルトンインスタンスを取得または設定します。
+        /// </summary>
         public static DatabaseService Instance
         {
             get => _instance ??= new DatabaseService();
@@ -20,6 +29,10 @@ namespace ImageManager.Services
         private readonly string _dbPath;
         private readonly string _connectionString;
 
+        /// <summary>
+        /// <see cref="DatabaseService"/> クラスの新しいインスタンスを初期化し、データベーススキーマを検証・作成します。
+        /// </summary>
+        /// <param name="customDbPath">テスト用等のカスタムDBパス（省略時は標準保存先を使用）</param>
         public DatabaseService(string? customDbPath = null)
         {
             _dbPath = customDbPath ?? GetDatabasePath();
@@ -27,6 +40,10 @@ namespace ImageManager.Services
             InitializeDatabase();
         }
 
+        /// <summary>
+        /// データベースファイルの標準保存先パス（AppData\Local\ImageManager\imagemanager.db）を取得します。
+        /// </summary>
+        /// <returns>データベースファイルのフルパス</returns>
         private static string GetDatabasePath()
         {
             string folderPath;
@@ -42,14 +59,19 @@ namespace ImageManager.Services
             return Path.Combine(folderPath, "imagemanager.db");
         }
 
+        /// <summary>
+        /// データベースのテーブルおよびインデックスを初期化します。
+        /// データベースファイル破損（SQLITE_CORRUPT）を検知した場合は自動的に再作成・リカバリを行います。
+        /// </summary>
         public void InitializeDatabase()
         {
             try
             {
                 ExecuteCreateTables();
             }
-            catch (SqliteException ex) when (ex.SqliteErrorCode == 11) // SQLITE_CORRUPT
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 11) // SQLITE_CORRUPT (破損エラー)
             {
+                // コネクションプールをクリアし、破損ファイルを削除して再生成
                 SqliteConnection.ClearAllPools();
                 if (File.Exists(_dbPath))
                 {
@@ -59,6 +81,9 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// Libraries, Images, ExifMetadata, ImageTags テーブルおよびパフォーマンス向上のためのインデックスを作成します。
+        /// </summary>
         private void ExecuteCreateTables()
         {
             using var conn = new SqliteConnection(_connectionString);
@@ -120,6 +145,13 @@ namespace ImageManager.Services
         }
 
         #region File Hash Computation
+        /// <summary>
+        /// 高速かつ一意性の高いファイルハッシュを計算します。
+        /// ファイル全体を読まずに「ファイルサイズ + 最終更新日時Ticks + 先頭8KBのMD5」を組み合わせることで
+        /// 大容量画像やRAWファイルでもミリ秒単位でハッシュを算出します。
+        /// </summary>
+        /// <param name="filePath">対象ファイルの絶対パス</param>
+        /// <returns>計算されたハッシュ文字列（例: "2450123_63800000000_A1B2C3..."）</returns>
         public static string CalculateFileHash(string filePath)
         {
             try
@@ -148,12 +180,19 @@ namespace ImageManager.Services
         #endregion
 
         #region Library Operations & Path Tracking
+        /// <summary>
+        /// ライブラリレコードを登録または更新します。
+        /// ルートパスが変更された場合は、配下全画像の LastKnownFullPath も一括で更新（Path Tracking）します。
+        /// </summary>
+        /// <param name="libraryId">ライブラリID</param>
+        /// <param name="name">ライブラリ表示名</param>
+        /// <param name="rootPath">ライブラリのルートフォルダパス</param>
         public void UpsertLibrary(string libraryId, string name, string rootPath)
         {
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
 
-            // Check if root path has changed for existing library
+            // 既存のルートパスを取得し、変更されたかを検証
             string? existingRoot = null;
             using (var checkCmd = conn.CreateCommand())
             {
@@ -178,13 +217,19 @@ namespace ImageManager.Services
                 cmd.ExecuteNonQuery();
             }
 
-            // Path Tracking: If Library RootPath changed, update all resolved full paths in DB
+            // ルートパスが変更された場合、配下の全画像のフルパスを再計算して更新
             if (!string.IsNullOrEmpty(existingRoot) && !existingRoot.Equals(rootPath, StringComparison.OrdinalIgnoreCase))
             {
                 UpdateLibraryFullPaths(conn, libraryId, rootPath);
             }
         }
 
+        /// <summary>
+        /// ライブラリに所属するすべての画像の LastKnownFullPath を新しいルートパスに基づき一括更新します。
+        /// </summary>
+        /// <param name="conn">アクティブな SQLite 接続</param>
+        /// <param name="libraryId">ライブラリID</param>
+        /// <param name="newRootPath">新しいルートパス</param>
         public void UpdateLibraryFullPaths(SqliteConnection conn, string libraryId, string newRootPath)
         {
             using var cmd = conn.CreateCommand();
@@ -216,6 +261,10 @@ namespace ImageManager.Services
             transaction.Commit();
         }
 
+        /// <summary>
+        /// 指定されたライブラリとそれに紐づくすべての画像・Exif・タグ情報をカスケード削除します。
+        /// </summary>
+        /// <param name="libraryId">削除対象のライブラリID</param>
         public void DeleteLibrary(string libraryId)
         {
             using var conn = new SqliteConnection(_connectionString);
@@ -259,19 +308,29 @@ namespace ImageManager.Services
         #endregion
 
         #region Image Operations & Auto-Relocation Tracking
+        /// <summary>
+        /// 画像レコードを同期します。
+        /// 1. 既存レコードの確認と情報マージ（お気に入り・レーティング等）
+        /// 2. ファイル移動・リネームの自動追跡（同一ハッシュで旧パスが存在しないレコードを検知し追従）
+        /// 3. 新規画像のインサート
+        /// </summary>
+        /// <param name="imageFile">対象画像モデル</param>
+        /// <param name="libraryId">所属ライブラリID</param>
+        /// <param name="libraryRootPath">ライブラリのルートパス</param>
+        /// <returns>画像の一意識別子（ImageId）</returns>
         public string SyncImageRecord(ImageFile imageFile, string libraryId, string libraryRootPath)
         {
             string fullPath = imageFile.FilePath;
             string relativePath = Path.GetRelativePath(libraryRootPath, fullPath);
             string fileHash = CalculateFileHash(fullPath);
 
-            // Ensure library record exists in Libraries table for FOREIGN KEY constraint
+            // 外部キー制約を満たすためライブラリレコードが存在することを確認
             UpsertLibrary(libraryId, Path.GetFileName(libraryRootPath) ?? libraryId, libraryRootPath);
 
             using var conn = new SqliteConnection(_connectionString);
             conn.Open();
 
-            // 1. Check if exact (LibraryId, RelativePath) exists OR LastKnownFullPath matches
+            // 1. (LibraryId, RelativePath) または LastKnownFullPath が一致する既存レコードを検索
             string? existingImageId = null;
             int isFav = 0;
             string? category = null;
@@ -311,7 +370,7 @@ namespace ImageManager.Services
                 return existingImageId;
             }
 
-            // 2. Path Tracking: Check if file with same FileHash exists whose LastKnownFullPath no longer exists on disk
+            // 2. パス追跡（Path Tracking）: 同一ハッシュを持ち、かつ旧パスがディスク上に存在しないレコードがあれば移動とみなす
             if (!string.IsNullOrEmpty(fileHash))
             {
                 var candidates = new List<(string CandidateId, string OldFullPath, int CandidateFav, string? CandidateCategory, int CandidateRating)>();
@@ -336,7 +395,7 @@ namespace ImageManager.Services
                 {
                     if (!File.Exists(candidate.OldFullPath))
                     {
-                        // File was moved or renamed! Relocate DB record to new path to preserve tags & metadata
+                        // ファイルが移動または名前変更されたと判定。既存のメタデータやタグを引き継ぐ
                         using var relocateCmd = conn.CreateCommand();
                         relocateCmd.CommandText = @"
                             UPDATE Images 
@@ -369,7 +428,7 @@ namespace ImageManager.Services
                 }
             }
 
-            // 3. New Image Insertion
+            // 3. 新規画像レコードの登録
             string newImageId = Guid.NewGuid().ToString();
             using (var insertCmd = conn.CreateCommand())
             {
@@ -407,6 +466,9 @@ namespace ImageManager.Services
             return newImageId;
         }
 
+        /// <summary>
+        /// 既存の画像レコードを更新します。
+        /// </summary>
         private void UpdateImageRecord(SqliteConnection conn, string imageId, string fullPath, string fileHash, ImageFile imageFile)
         {
             using var cmd = conn.CreateCommand();
@@ -433,6 +495,10 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// 画像モデルのExif情報に基づき、ExifMetadataテーブルを更新します。
+        /// </summary>
+        /// <param name="imageFile">更新対象の画像モデル</param>
         public void UpdateExifRecord(ImageFile imageFile)
         {
             try
@@ -456,6 +522,9 @@ namespace ImageManager.Services
             catch { }
         }
 
+        /// <summary>
+        /// ExifMetadata テーブルにレコードを挿入または更新します。
+        /// </summary>
         public void SaveExifRecord(SqliteConnection conn, string imageId, ImageFile imageFile)
         {
             using var cmd = conn.CreateCommand();
@@ -480,6 +549,9 @@ namespace ImageManager.Services
             cmd.ExecuteNonQuery();
         }
 
+        /// <summary>
+        /// 指定されたパスの画像のカテゴリをデータベースへ保存します。
+        /// </summary>
         public void UpdateImageCategory(string filePath, string category)
         {
             using var conn = new SqliteConnection(_connectionString);
@@ -491,6 +563,10 @@ namespace ImageManager.Services
             cmd.ExecuteNonQuery();
         }
 
+        /// <summary>
+        /// 指定されたパスの画像のお気に入り状態（0/1）をデータベースへ保存します。
+        /// レコードが存在しない場合は自動作成します。
+        /// </summary>
         public void UpdateImageFavorite(string filePath, bool isFavorite)
         {
             using var conn = new SqliteConnection(_connectionString);
@@ -521,6 +597,10 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// 指定されたパスの画像のレーティング値（0〜5）をデータベースへ保存します。
+        /// レコードが存在しない場合は自動作成します。
+        /// </summary>
         public void UpdateImageRating(string filePath, int rating)
         {
             using var conn = new SqliteConnection(_connectionString);
@@ -551,6 +631,10 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// データベースを安全にバックアップファイルへエクスポートします（VACUUM INTO またはファイルコピー）。
+        /// </summary>
+        /// <param name="backupFilePath">バックアップ出力先パス</param>
         public void ExportDatabase(string backupFilePath)
         {
             if (File.Exists(backupFilePath))
@@ -560,6 +644,7 @@ namespace ImageManager.Services
 
             try
             {
+                // SQLite VACUUM INTO による一貫性のあるオンラインバックアップ
                 string normalizedPath = backupFilePath.Replace('\\', '/').Replace("'", "''");
                 using var conn = new SqliteConnection(_connectionString);
                 conn.Open();
@@ -593,6 +678,10 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// バックアップファイルからデータベースを復元・インポートします。
+        /// </summary>
+        /// <param name="sourceDbFilePath">復元元DBファイルパス</param>
         public void ImportDatabase(string sourceDbFilePath)
         {
             if (!File.Exists(sourceDbFilePath)) return;
@@ -606,6 +695,11 @@ namespace ImageManager.Services
             catch { }
         }
 
+        /// <summary>
+        /// フォルダパスがリネームまたは移動された際に、配下の全画像レコードのパスを一括置換更新します。
+        /// </summary>
+        /// <param name="oldFolderPath">旧フォルダパス</param>
+        /// <param name="newFolderPath">新フォルダパス</param>
         public void RelocateFolderPath(string oldFolderPath, string newFolderPath)
         {
             using var conn = new SqliteConnection(_connectionString);
@@ -652,6 +746,9 @@ namespace ImageManager.Services
         #endregion
 
         #region Batch Operations & High Performance Folder Loading
+        /// <summary>
+        /// 高速読み込み用の一時キャッシュレコードクラス。
+        /// </summary>
         public class CachedImageRecord
         {
             public string ImageId { get; set; } = string.Empty;
@@ -664,6 +761,12 @@ namespace ImageManager.Services
             public string FileHash { get; set; } = string.Empty;
         }
 
+        /// <summary>
+        /// 指定されたフォルダ直下および配下の画像レコードを1回のクエリで取得し、フルパスをキーとする辞書として返します。
+        /// フォルダ内の全画像に対して個別にSQLを実行するオーバーヘッドを排除し、高速な初期描画を実現します。
+        /// </summary>
+        /// <param name="folderPath">対象フォルダパス</param>
+        /// <returns>フルパスをキーとする画像レコードの辞書</returns>
         public Dictionary<string, CachedImageRecord> GetFolderImageRecordsMap(string folderPath)
         {
             var dict = new Dictionary<string, CachedImageRecord>(StringComparer.OrdinalIgnoreCase);
@@ -705,6 +808,12 @@ namespace ImageManager.Services
             return dict;
         }
 
+        /// <summary>
+        /// 複数の画像レコードを単一トランザクション内で一括同期（バッチInsert/Update）します。
+        /// </summary>
+        /// <param name="images">画像モデルのリスト</param>
+        /// <param name="libraryId">ライブラリID</param>
+        /// <param name="libraryRootPath">ライブラリのルートパス</param>
         public void BatchSyncImageRecords(IReadOnlyList<ImageFile> images, string libraryId, string libraryRootPath)
         {
             if (images == null || images.Count == 0) return;
@@ -750,7 +859,7 @@ namespace ImageManager.Services
 
                     if (existingMap.TryGetValue(fullPath, out var existing) || existingMap.TryGetValue(relPath, out existing))
                     {
-                        // Update existing record
+                        // 既存レコードの更新
                         using var updateCmd = conn.CreateCommand();
                         updateCmd.Transaction = transaction;
                         updateCmd.CommandText = @"
@@ -770,7 +879,7 @@ namespace ImageManager.Services
                     }
                     else
                     {
-                        // Insert new record
+                        // 新規レコードの挿入
                         string newImageId = Guid.NewGuid().ToString();
                         string fileHash = CalculateFileHash(fullPath);
                         using var insertCmd = conn.CreateCommand();

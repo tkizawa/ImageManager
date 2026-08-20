@@ -11,24 +11,41 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace ImageManager.Services
 {
+    /// <summary>
+    /// 各種デジタル一眼レフ・ミラーレスカメラのRAWファイル（CR2, CR3, ARW, NEF, DNG, RAF, RW2等）および
+    /// 標準画像（JPG, PNG, WebP等）の超高速サムネイル抽出・デコード・回転補正・キャッシュを担うサービスクラス。
+    /// 
+    /// 高速化の仕組み：
+    /// 1. RAWファイル内部に埋め込まれた高解像度プレビューJPEGのバイナリスキャン / ISO-BMFF (CR3) ボックス解析
+    /// 2. 抽出されたJPEGのExif Orientationタグに基づくロスレス回転補正
+    /// 3. ローカルSSDへのディスクキャッシュ（NAS・リムーバブルドライブ対応）
+    /// 4. LRU方式のインメモリキャッシュおよびSemaphoreSlimによるCPU/I/O負荷制御
+    /// </summary>
     public class RawThumbnailService
     {
+        /// <summary>対応しているRAW画像拡張子一覧</summary>
         private static readonly HashSet<string> RawExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".cr2", ".cr3", ".nef", ".nrw", ".arw", ".srf", ".sr2", ".dng",
             ".orf", ".rw2", ".pef", ".raf", ".3fr", ".erf", ".mrw"
         };
 
+        /// <summary>対応している標準画像拡張子一覧</summary>
         private static readonly HashSet<string> StandardExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"
         };
 
+        /// <summary>メモリ上のJPEGバイト配列キャッシュ</summary>
         private static readonly ConcurrentDictionary<string, byte[]> MemoryCache = new();
         private static readonly int MaxCacheItems = 200;
         private static readonly ConcurrentQueue<string> CacheKeys = new();
 
         private static string? _cacheDirectory;
+
+        /// <summary>
+        /// サムネイルキャッシュの保存先ディレクトリ（AppData\Local\ImageManager\Thumbnails）を取得します。
+        /// </summary>
         public static string CacheDirectory
         {
             get
@@ -43,12 +60,20 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// メモリキャッシュ内のすべてのエントリを破棄・解放します。
+        /// </summary>
         public static void ClearMemoryCache()
         {
             MemoryCache.Clear();
             while (CacheKeys.TryDequeue(out _)) { }
         }
 
+        /// <summary>
+        /// ファイルパス、ファイルサイズ、最終更新日時Ticksから一意のキャッシュキー（SHA256ハッシュ文字列）を生成します。
+        /// </summary>
+        /// <param name="filePath">対象ファイルパス</param>
+        /// <returns>キャッシュキー文字列（SHA256 16進数文字列）</returns>
         public static string GetThumbnailCacheKey(string filePath)
         {
             try
@@ -66,6 +91,11 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// 指定された画像ファイルのキャッシュファイル絶対パスを取得します。
+        /// </summary>
+        /// <param name="filePath">画像ファイルパス</param>
+        /// <returns>キャッシュファイルの絶対パス。非対応形式またはエラー時は null。</returns>
         public static string? GetCacheFilePath(string filePath)
         {
             if (string.IsNullOrEmpty(filePath) || !IsSupportedImage(filePath)) return null;
@@ -76,6 +106,13 @@ namespace ImageManager.Services
             return Path.Combine(CacheDirectory, $"raw_v10_{key}{ext}");
         }
 
+        /// <summary>
+        /// 指定されたファイルがローカルSSDキャッシュの対象であるかを判定します。
+        /// RAW画像、UNCネットワーク共有パス、USBメモリ/SDカード、別ドライブ上の画像は
+        /// パフォーマンス向上のためSSDキャッシュ対象と判定されます。
+        /// </summary>
+        /// <param name="filePath">対象ファイルパス</param>
+        /// <returns>キャッシュすべき場合は true</returns>
         public static bool ShouldCacheFile(string filePath)
         {
             if (string.IsNullOrEmpty(filePath)) return false;
@@ -117,6 +154,11 @@ namespace ImageManager.Services
             return false;
         }
 
+        /// <summary>
+        /// 標準画像ファイルを一時ファイル経由で安全にキャッシュディレクトリへ非同期コピーします。
+        /// </summary>
+        /// <param name="filePath">元画像ファイルパス</param>
+        /// <param name="cacheFilePath">コピー先キャッシュパス</param>
         public static async Task CacheStandardFileAsync(string filePath, string cacheFilePath)
         {
             if (string.IsNullOrEmpty(filePath) || string.IsNullOrEmpty(cacheFilePath)) return;
@@ -147,6 +189,11 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// 指定されたパスのファイルがRAW画像であるかを判定します。
+        /// </summary>
+        /// <param name="filePath">ファイルパス</param>
+        /// <returns>RAWファイルであれば true</returns>
         public static bool IsRawFile(string filePath)
         {
             if (string.IsNullOrEmpty(filePath)) return false;
@@ -154,6 +201,11 @@ namespace ImageManager.Services
             return RawExtensions.Contains(ext);
         }
 
+        /// <summary>
+        /// アプリケーションがサポートしている画像形式（標準画像またはRAW画像）であるかを判定します。
+        /// </summary>
+        /// <param name="filePath">ファイルパス</param>
+        /// <returns>サポート形式であれば true</returns>
         public static bool IsSupportedImage(string filePath)
         {
             if (string.IsNullOrEmpty(filePath)) return false;
@@ -161,11 +213,19 @@ namespace ImageManager.Services
             return StandardExtensions.Contains(ext) || RawExtensions.Contains(ext);
         }
 
+        /// <summary>
+        /// サポートされているすべての画像拡張子のコレクションを取得します。
+        /// </summary>
         public static IEnumerable<string> GetSupportedExtensions()
         {
             return StandardExtensions.Concat(RawExtensions);
         }
 
+        /// <summary>
+        /// RAWファイルのExif IFD0から撮影時の回転情報（Orientation: 1〜8）を読み取ります。
+        /// </summary>
+        /// <param name="filePath">RAWファイルパス</param>
+        /// <returns>Exif Orientation値（1: 正位置、6: 90度時計回り 等）</returns>
         public static int GetRawOrientation(string filePath)
         {
             try
@@ -185,6 +245,12 @@ namespace ImageManager.Services
             return 1;
         }
 
+        /// <summary>
+        /// JPEGバイト配列をExif Orientation情報に従ってピクセル回転・反転変換し、補正済みJPEGバイト配列を返します。
+        /// </summary>
+        /// <param name="jpegBytes">元のJPEGバイト配列</param>
+        /// <param name="orientation">Exif Orientation値（1〜8）</param>
+        /// <returns>回転補正後のJPEGバイト配列</returns>
         public static async Task<byte[]> RotateJpegBytesAsync(byte[] jpegBytes, int orientation)
         {
             if (orientation <= 1 || orientation > 8) return jpegBytes;
@@ -229,7 +295,7 @@ namespace ImageManager.Services
                         break;
                     default:
                         return jpegBytes;
-                }
+                    }
 
                 var pixelData = await decoder.GetPixelDataAsync(
                     BitmapPixelFormat.Bgra8,
@@ -267,11 +333,18 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// RAW画像から埋め込みJPEGプレビューを非同期抽出します。
+        /// メモリキャッシュ、ディスクキャッシュ、CR3ボックス解析、バイナリスキャン、Windowsコーデックの順にフォールバックします。
+        /// </summary>
+        /// <param name="filePath">RAWファイルパス</param>
+        /// <returns>抽出されたJPEGバイト配列。失敗時は null。</returns>
         public static async Task<byte[]?> GetEmbeddedJpegBytesAsync(string filePath)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                 return null;
 
+            // 1. メモリキャッシュの確認
             if (MemoryCache.TryGetValue(filePath, out var cachedBytes))
             {
                 if (cachedBytes.Length > 0)
@@ -282,6 +355,7 @@ namespace ImageManager.Services
 
             string? cacheFilePath = GetCacheFilePath(filePath);
 
+            // 2. ディスクキャッシュの確認
             if (cacheFilePath != null && File.Exists(cacheFilePath))
             {
                 try
@@ -304,21 +378,25 @@ namespace ImageManager.Services
                 try
                 {
                     string ext = Path.GetExtension(filePath);
+                    // Canon CR3 の場合は専用の ISO-BMFF ボックスパーサーを実行
                     if (ext.Equals(".cr3", StringComparison.OrdinalIgnoreCase))
                     {
                         jpegBytes = await Task.Run(() => ExtractCr3PreviewJpeg(filePath));
                     }
 
+                    // 一般的なRAWの場合はバイナリスキャンで最大解像度の埋め込みJPEGを検出
                     if (jpegBytes == null || jpegBytes.Length == 0)
                     {
                         jpegBytes = await Task.Run(() => ExtractEmbeddedJpegByBinaryScan(filePath));
                     }
 
+                    // 埋め込みJPEGが見つからない場合は Windows Imaging Component (WIC) でデコード
                     if (jpegBytes == null || jpegBytes.Length == 0)
                     {
                         jpegBytes = await DecodeRawUsingWindowsCodecAsync(filePath);
                     }
 
+                    // Exif Orientation に基づく回転補正
                     if (jpegBytes != null && jpegBytes.Length > 0)
                     {
                         int orientation = GetRawOrientation(filePath);
@@ -343,6 +421,7 @@ namespace ImageManager.Services
             {
                 CacheJpegBytes(filePath, jpegBytes);
 
+                // RAWの場合は次回以降の高速化のためディスクキャッシュへ保存
                 if (isRaw && cacheFilePath != null)
                 {
                     try
@@ -356,6 +435,12 @@ namespace ImageManager.Services
             return jpegBytes;
         }
 
+        /// <summary>
+        /// 標準画像ファイルを指定解像度内に高品質リサイズしたサムネイルJPEGバイト配列を生成します。
+        /// </summary>
+        /// <param name="filePath">画像ファイルパス</param>
+        /// <param name="maxDimension">長辺の最大ピクセル数（デフォルト: 1024）</param>
+        /// <returns>サムネイルJPEGバイト配列</returns>
         public static async Task<byte[]?> CreateStandardImageThumbnailBytesAsync(string filePath, uint maxDimension = 1024)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return null;
@@ -413,6 +498,12 @@ namespace ImageManager.Services
             return null;
         }
 
+        /// <summary>
+        /// Windows の RAW コーデック拡張機能（WIC）を使用してRAW画像をデコードします。
+        /// </summary>
+        /// <param name="filePath">RAWファイルパス</param>
+        /// <param name="maxDimension">長辺の最大ピクセル数（デフォルト: 1920）</param>
+        /// <returns>デコードされたJPEGバイト配列</returns>
         public static async Task<byte[]?> DecodeRawUsingWindowsCodecAsync(string filePath, uint maxDimension = 1920)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return null;
@@ -492,6 +583,11 @@ namespace ImageManager.Services
             return null;
         }
 
+        /// <summary>
+        /// Canon CR3 (ISO-BMFF形式) ファイルの構造（PRVW, THMBボックス等）を走査してプレビューJPEGを抽出します。
+        /// </summary>
+        /// <param name="filePath">CR3ファイルパス</param>
+        /// <returns>プレビューJPEGバイト配列</returns>
         public static byte[]? ExtractCr3PreviewJpeg(string filePath)
         {
             if (!File.Exists(filePath)) return null;
@@ -526,6 +622,9 @@ namespace ImageManager.Services
             return boxResult ?? scanResult;
         }
 
+        /// <summary>
+        /// CR3 ファイル内の ISO-BMFF ボックスを再帰的にパースし、PRVW / THMB 内の JPEG を収集します。
+        /// </summary>
         private static void ScanForCr3Boxes(FileStream fs, long startOffset, long maxOffset, List<byte[]> foundJpegs)
         {
             fs.Position = startOffset;
@@ -609,6 +708,13 @@ namespace ImageManager.Services
             }
         }
 
+        /// <summary>
+        /// JPEGバイナリデータ内の SOF0 (0xC0), SOF1 (0xC1), SOF2 (0xC2) マーカーを解析して画像の横幅・高さを高速取得します。
+        /// </summary>
+        /// <param name="data">JPEGバイト列スパン</param>
+        /// <param name="width">取得された横幅</param>
+        /// <param name="height">取得された高さ</param>
+        /// <returns>正常に寸法を取得できた場合は true</returns>
         public static bool GetJpegDimensions(ReadOnlySpan<byte> data, out int width, out int height)
         {
             width = 0;
@@ -633,7 +739,7 @@ namespace ImageManager.Services
                         break;
                     }
 
-                    // Valid JPEG SOF markers: SOF0 (C0: Baseline), SOF1 (C1: Extended), SOF2 (C2: Progressive)
+                    // 有効なJPEG SOFマーカー: SOF0 (C0: Baseline), SOF1 (C1: Extended), SOF2 (C2: Progressive)
                     if (marker == 0xC0 || marker == 0xC1 || marker == 0xC2)
                     {
                         int precision = data[pos + 4];
@@ -667,6 +773,9 @@ namespace ImageManager.Services
             return width > 0 && height > 0;
         }
 
+        /// <summary>
+        /// 複数の候補JPEGの中から最も解像度（画素数）の高いものを選択します。
+        /// </summary>
         private static byte[] PickBestJpeg(IEnumerable<byte[]> jpegs)
         {
             byte[]? best = null;
@@ -699,6 +808,12 @@ namespace ImageManager.Services
             public int Height;
         }
 
+        /// <summary>
+        /// RAWファイルのバイナリストリームから SOI (0xFFD8) 〜 EOI (0xFFD9) パターンをスキャンし、
+        /// 埋め込まれている最大解像度のプレビューJPEGを直接抽出します。
+        /// </summary>
+        /// <param name="filePath">RAWファイルパス</param>
+        /// <returns>抽出されたJPEGバイト配列</returns>
         public static byte[]? ExtractEmbeddedJpegByBinaryScan(string filePath)
         {
             if (!File.Exists(filePath)) return null;
@@ -830,6 +945,9 @@ namespace ImageManager.Services
             return null;
         }
 
+        /// <summary>
+        /// メモリキャッシュにJPEGバイト配列を登録（最大数超過時は最古のエントリを破棄）します。
+        /// </summary>
         private static void CacheJpegBytes(string filePath, byte[] bytes)
         {
             if (MemoryCache.Count >= MaxCacheItems)
@@ -844,14 +962,23 @@ namespace ImageManager.Services
             CacheKeys.Enqueue(filePath);
         }
 
+        /// <summary>RAW抽出の同時実行数を制限するセマフォ（CPU過負荷防止）</summary>
         private static readonly System.Threading.SemaphoreSlim RawExtractionSemaphore = new(4, 4);
 
+        /// <summary>
+        /// <see cref="BitmapImage"/> に画像ファイル（RAWまたは通常画像）を非同期デコードして設定します。
+        /// UIスレッドの安全性を保ちつつ、バックグラウンドスレッドでデコードを行います。
+        /// </summary>
+        /// <param name="bitmapImage">設定対象の <see cref="BitmapImage"/></param>
+        /// <param name="filePath">画像ファイルの絶対パス</param>
+        /// <param name="decodeWidth">デコード幅（0以下の場合は原寸表示）</param>
         public static async Task LoadBitmapImageAsync(BitmapImage bitmapImage, string filePath, int decodeWidth = 300)
         {
             if (string.IsNullOrEmpty(filePath)) return;
 
             var dq = bitmapImage.DispatcherQueue ?? App.MainWindow?.DispatcherQueue ?? Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
+            // UIスレッド上でアクションを実行するローカル関数
             void RunOnUI(Action action)
             {
                 if (dq != null && !dq.HasThreadAccess)
@@ -867,6 +994,7 @@ namespace ImageManager.Services
                 }
             }
 
+            // バイト配列からストリームを介してUIスレッドでBitmapImageに設定
             void SetSourceFromBytesOnUI(byte[] bytes)
             {
                 if (dq != null && !dq.HasThreadAccess)
@@ -912,7 +1040,7 @@ namespace ImageManager.Services
             bool isRaw = IsRawFile(filePath);
             string? cacheFilePath = GetCacheFilePath(filePath);
 
-            // 1. Full resolution view (ImageWindow etc. where decodeWidth <= 0)
+            // 1. 原寸・高解像度ビュー（decodeWidth <= 0 の場合: ImageWindow等）
             if (decodeWidth <= 0)
             {
                 if (!isRaw)
@@ -932,14 +1060,14 @@ namespace ImageManager.Services
                     return;
                 }
 
-                // Check disk cache for RAW files
+                // RAW画像のディスクキャッシュ確認
                 if (cacheFilePath != null && File.Exists(cacheFilePath))
                 {
                     RunOnUI(() => bitmapImage.UriSource = new Uri(cacheFilePath));
                     return;
                 }
 
-                // For RAW images in full viewer, load full embedded JPEG
+                // RAW画像からフルプレビューJPEGを取得
                 byte[]? fullJpeg = null;
                 await RawExtractionSemaphore.WaitAsync();
                 try
@@ -963,7 +1091,7 @@ namespace ImageManager.Services
                     return;
                 }
 
-                // Fallback for full viewer: Windows StorageFile scaled thumbnail
+                // フォールバック: Windows StorageFile 経由のスケールサムネイル取得
                 if (dq != null)
                 {
                     dq.TryEnqueue(async () =>
@@ -986,7 +1114,7 @@ namespace ImageManager.Services
                 return;
             }
 
-            // 2. Thumbnail view (decodeWidth > 0)
+            // 2. サムネイル表示（decodeWidth > 0）
             RunOnUI(() => bitmapImage.DecodePixelWidth = decodeWidth);
 
             if (!isRaw)
@@ -997,7 +1125,7 @@ namespace ImageManager.Services
                     return;
                 }
 
-                // For standard image files (JPG, PNG, etc.), display immediately with hardware accelerated decode
+                // 標準画像はハードウェアデコードを活用してURIから直接表示
                 RunOnUI(() => bitmapImage.UriSource = new Uri(filePath));
 
                 if (cacheFilePath != null && ShouldCacheFile(filePath))
@@ -1009,7 +1137,7 @@ namespace ImageManager.Services
 
             RunOnUI(() => bitmapImage.DecodePixelWidth = decodeWidth);
 
-            // Check disk cache for RAW images
+            // RAW画像のディスクキャッシュ確認
             if (cacheFilePath != null && File.Exists(cacheFilePath))
             {
                 RunOnUI(() => bitmapImage.UriSource = new Uri(cacheFilePath));
@@ -1022,7 +1150,6 @@ namespace ImageManager.Services
                 await RawExtractionSemaphore.WaitAsync();
                 try
                 {
-                    // Check disk cache again inside semaphore
                     if (cacheFilePath != null && File.Exists(cacheFilePath))
                     {
                         RunOnUI(() => bitmapImage.UriSource = new Uri(cacheFilePath));
@@ -1047,7 +1174,7 @@ namespace ImageManager.Services
                     return;
                 }
 
-                // Fallback for RAW thumbnail: Windows StorageFile thumbnail
+                // フォールバック: Windows StorageFile サムネイル
                 if (dq != null)
                 {
                     dq.TryEnqueue(async () =>

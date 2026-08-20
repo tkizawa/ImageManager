@@ -12,10 +12,22 @@ using Microsoft.UI;
 
 namespace ImageManager;
 
+/// <summary>
+/// アプリケーションのメインウィンドウクラス。
+/// 
+/// 主な機能と役割：
+/// 1. ウィンドウ位置・サイズ・最大化状態および列幅（グリッドスプリッター）の保存・復元（プロジェクト規約準拠）
+/// 2. アプリ終了時のキャッシュ自動クリーンアップ処理（バックグラウンド実行）
+/// 3. サムネイル一覧のキーボード操作（Ctrl+C/X/V, Delete, F, 0〜5, Ctrl+A 等）およびマウスマウスドラッグスクロール
+/// 4. モーダルライクなプレビューウィンドウ（ImageWindow）の生成とウィンドウフォーカス制御
+/// 5. フォルダツリー、お気に入り、履歴、ライブラリ管理、外部アプリケーション連携
+/// </summary>
 public partial class MainWindow : Window
 {
     private readonly Services.ISettingsService _settingsService = null!;
     private readonly Services.ImageClassifierService _classifierService = new();
+
+    /// <summary>バインドされているメインViewModelインスタンスを取得します。</summary>
     public ViewModels.MainViewModel ViewModel { get; } = null!;
     private AppWindow _appWindow = null!;
 
@@ -27,12 +39,16 @@ public partial class MainWindow : Window
     private bool _isClosingHandled;
     private bool _isCleaningOnExit;
 
+    /// <summary>
+    /// <see cref="MainWindow"/> クラスのデフォルトコンストラクタ。
+    /// ウィンドウタイトルの設定、アイコンの読み込み、および終了イベントの購読を行います。
+    /// </summary>
     public MainWindow()
     {
         try {
             InitializeComponent();
             
-            // Get AppWindow
+            // WinUI 3 AppWindow インスタンスの取得
             IntPtr hWnd = WindowNative.GetWindowHandle(this);
             WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
             _appWindow = AppWindow.GetFromWindowId(windowId);
@@ -45,6 +61,11 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 依存サービスおよびViewModelを注入して <see cref="MainWindow"/> を初期化します。
+    /// </summary>
+    /// <param name="settingsService">設定管理サービス</param>
+    /// <param name="mainViewModel">メインViewModel</param>
     public MainWindow(Services.ISettingsService settingsService, ViewModels.MainViewModel mainViewModel) : this()
     {
         _settingsService = settingsService;
@@ -54,32 +75,32 @@ public partial class MainWindow : Window
         RootGrid.Loaded += RootGrid_Loaded;
         this.Closed += MainWindow_Closed;
 
-        // Handle Keyboard Shortcuts
+        // キーボードショートカットイベントの登録
         RootGrid.AddHandler(UIElement.KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(RootGrid_KeyDown), true);
 
-        // Handle Ctrl + Wheel
+        // Ctrl + ホイールによるサムネイルサイズ拡大・縮小
         RootGrid.AddHandler(UIElement.PointerWheelChangedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerWheelChanged), true);
         
-        // Mouse drag scrolling for ThumbnailGridView
+        // サムネイルグリッドのマウスドラッグによるスクロール操作
         ThumbnailGridView.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerPressed), true);
         ThumbnailGridView.AddHandler(UIElement.PointerMovedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerMoved), true);
         ThumbnailGridView.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerReleased), true);
         ThumbnailGridView.AddHandler(UIElement.PointerCanceledEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerReleased), true);
         ThumbnailGridView.AddHandler(UIElement.PointerCaptureLostEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ThumbnailGridView_PointerReleased), true);
         
+        // ツリービューで選択されたフォルダノードへのフォーカス＆スクロール追従
         ViewModel.FolderSelectedEvent += async (s, node) => 
         {
             await System.Threading.Tasks.Task.Delay(100);
             FolderTreeView.SelectedItem = node;
 
-            // Retry for up to 10 times to let the UI generate the TreeViewItem
+            // UI生成遅延に対応するため最大10回リトライ
             for (int i = 0; i < 10; i++)
             {
                 FolderTreeView.UpdateLayout();
                 var container = FolderTreeView.ContainerFromItem(node) as TreeViewItem;
                 if (container != null)
                 {
-                    // Focus and scroll into view
                     container.Focus(FocusState.Programmatic);
                     container.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5 });
                     break;
@@ -88,6 +109,7 @@ public partial class MainWindow : Window
             }
         };
 
+        // メッセージダイアログ表示イベント（ローカライズキー対応）
         ViewModel.ShowMessageRequested += async (s, e) =>
         {
             try
@@ -108,6 +130,7 @@ public partial class MainWindow : Window
             catch { }
         };
 
+        // 直接テキスト指定によるメッセージダイアログ表示イベント
         ViewModel.ShowDirectMessageRequested += async (s, e) =>
         {
             try
@@ -125,6 +148,9 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>
+    /// Ctrl+マウスホイールによるサムネイルサイズの動的リサイズハンドラ。
+    /// </summary>
     private void ThumbnailGridView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         var state = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
@@ -148,6 +174,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// VisualTreeから指定された型の最初の子要素を再帰的に探索します。
+    /// </summary>
     private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
     {
         int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
@@ -167,6 +196,7 @@ public partial class MainWindow : Window
         return null;
     }
 
+    /// <summary>サムネイルグリッド上でのマウス押下（ドラッグスクロール開始判定）</summary>
     private void ThumbnailGridView_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         var point = e.GetCurrentPoint(ThumbnailGridView);
@@ -181,6 +211,7 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>サムネイルグリッド上でのマウス移動（ドラッグスクロール実行）</summary>
     private void ThumbnailGridView_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         if (!_isThumbnailPointerDown) return;
@@ -221,6 +252,7 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>サムネイルグリッド上でのマウス解放（ドラッグスクロール終了）</summary>
     private void ThumbnailGridView_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         if (_isThumbnailDragScrolling)
@@ -237,6 +269,9 @@ public partial class MainWindow : Window
         _isThumbnailDragScrolling = false;
     }
 
+    /// <summary>
+    /// サムネイルダブルクリック時に別ウィンドウ（ImageWindow）をモーダル表示します。
+    /// </summary>
     private async void ThumbnailGridView_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
     {
         if (ThumbnailGridView.SelectedItem is Models.ImageFile selectedImage)
@@ -247,22 +282,21 @@ public partial class MainWindow : Window
             IntPtr mainHWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             IntPtr imageHWnd = WinRT.Interop.WindowNative.GetWindowHandle(imageWindow);
 
-            // メインウィンドウを無効化（モーダル動作）
+            // メインウィンドウを一時的に無効化（モーダルライク動作）
             EnableWindow(mainHWnd, false);
 
             imageWindow.Closed += (s, ev) => 
             {
-                // ウィンドウが閉じたらメインウィンドウを有効化し、最前面に戻す
+                // プレビューウィンドウ終了時にメインウィンドウを再有効化しフォーカス復元
                 EnableWindow(mainHWnd, true);
                 SetForegroundWindow(mainHWnd);
             };
 
-            // メインウィンドウでのイベント伝播とフォーカス処理が完全に終了するのを待つ
             await System.Threading.Tasks.Task.Delay(50);
 
             imageWindow.Activate();
             
-            // 別ウィンドウを強制的に最前面に出す
+            // プレビューウィンドウを最前面にアクティベート
             SetWindowPos(imageHWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             SetWindowPos(imageHWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             SetForegroundWindow(imageHWnd);
@@ -423,6 +457,11 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 登録された外部アプリケーションを起動し、指定された画像ファイルパスを渡します。
+    /// </summary>
+    /// <param name="app">外部アプリ設定モデル</param>
+    /// <param name="filePath">対象画像パス</param>
     public static void LaunchExternalApp(Models.ExternalApp app, string filePath)
     {
         if (string.IsNullOrEmpty(app.ExecutablePath) || string.IsNullOrEmpty(filePath)) return;
@@ -654,6 +693,9 @@ public partial class MainWindow : Window
         ViewModel.RaiseDirectMessage(string.IsNullOrEmpty(title) ? titleKey : title, msg);
     }
 
+    /// <summary>
+    /// メインウィンドウ全体のキーボードショートカット処理（Ctrl+C/X/V/A, Delete, F, 0〜5）
+    /// </summary>
     private async void RootGrid_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
     {
         var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
@@ -756,6 +798,7 @@ public partial class MainWindow : Window
         }
     }
 
+    #region Win32 API Interop
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool EnableWindow(IntPtr hWnd, bool bEnable);
 
@@ -770,6 +813,7 @@ public partial class MainWindow : Window
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_SHOWWINDOW = 0x0040;
+    #endregion
 
     private GridLength ParseGridLength(string value, GridLength fallback)
     {
@@ -808,10 +852,9 @@ public partial class MainWindow : Window
     {
         var col = RootGrid.ColumnDefinitions[0];
         double newWidth = col.ActualWidth + e.HorizontalChange;
-        if (newWidth > 50) // Minimum width
+        if (newWidth > 50)
         {
             col.Width = new GridLength(newWidth, GridUnitType.Pixel);
-            // Change the middle column to Star sizing if it was fixed, so that it can absorb space
             if (RootGrid.ColumnDefinitions[2].Width.IsAbsolute)
             {
                 RootGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
@@ -823,7 +866,7 @@ public partial class MainWindow : Window
     {
         var col = RootGrid.ColumnDefinitions[4];
         double newWidth = col.ActualWidth - e.HorizontalChange;
-        if (newWidth > 50) // Minimum width
+        if (newWidth > 50)
         {
             col.Width = new GridLength(newWidth, GridUnitType.Pixel);
             if (RootGrid.ColumnDefinitions[2].Width.IsAbsolute)
@@ -833,6 +876,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// メインUIロード時、保存されたウィンドウ位置・サイズ・最大化状態および列幅を復元します（プロジェクト規約準拠）。
+    /// </summary>
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         var settings = _settingsService.Load();
@@ -848,7 +894,7 @@ public partial class MainWindow : Window
             _appWindow.Move(new Windows.Graphics.PointInt32((int)settings.WindowLeft, (int)settings.WindowTop));
         }
 
-        if (settings.WindowState == 2) // Maximized
+        if (settings.WindowState == 2) // 最大化状態
         {
             if (_appWindow.Presenter is OverlappedPresenter presenter)
             {
@@ -856,6 +902,7 @@ public partial class MainWindow : Window
             }
         }
 
+        // 各列の幅を復元
         RootGrid.ColumnDefinitions[0].Width = ParseGridLength(settings.TreeColumnWidth, new GridLength(1, GridUnitType.Star));
         RootGrid.ColumnDefinitions[2].Width = ParseGridLength(settings.ThumbnailsColumnWidth, new GridLength(2, GridUnitType.Star));
         RootGrid.ColumnDefinitions[4].Width = ParseGridLength(settings.PreviewColumnWidth, new GridLength(1, GridUnitType.Star));
@@ -863,6 +910,10 @@ public partial class MainWindow : Window
         _ = ViewModel.InitializeAsync();
     }
 
+    /// <summary>
+    /// ウィンドウ終了要求時ハンドラ。
+    /// 自動クリーンアップ設定が有効な場合、クリーンアップを実行してからアプリを終了します。
+    /// </summary>
     private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_isClosingHandled) return;
@@ -910,6 +961,9 @@ public partial class MainWindow : Window
         _isClosingHandled = true;
     }
 
+    /// <summary>
+    /// ウィンドウが閉じられた際、ウィンドウサイズ・位置・最大化状態・各ペイン列幅を設定へ保存します（プロジェクト規約準拠）。
+    /// </summary>
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         var settings = _settingsService.Load();
@@ -946,6 +1000,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 操作説明ヘルプダイアログを表示します。
+    /// </summary>
     private async void HelpButton_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -977,6 +1034,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// AI自動分類ダイアログを起動します。
+    /// </summary>
     private async void ClassifyButton_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -1007,6 +1067,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 操作説明（ヘルプ）ダイアログのコンテンツUIツリーを動的に構築します。
+    /// </summary>
     private UIElement CreateHelpContent(bool isJa)
     {
         var stack = new StackPanel { Spacing = 16, Margin = new Thickness(0, 8, 16, 8) };
@@ -1234,6 +1297,7 @@ public partial class MainWindow : Window
 
     #region Library Tab Handlers
 
+    /// <summary>「新規ライブラリ」作成ボタン押下時のハンドラ</summary>
     private async void NewLibrary_Click(object sender, RoutedEventArgs e)
     {
         var resourceLoader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
@@ -1272,6 +1336,7 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>ライブラリツリーアイテムクリック時のハンドラ</summary>
     private async void LibraryTreeView_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
         if (args.InvokedItem is ViewModels.LibraryNodeViewModel node)
@@ -1319,6 +1384,9 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// ライブラリ登録フォルダが見つからない（移動・削除された）場合に再選択を促すダイアログ
+    /// </summary>
     private async System.Threading.Tasks.Task PromptRelocateLibraryFolderAsync(ViewModels.LibraryNodeViewModel node)
     {
         var isJa = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("ja", StringComparison.OrdinalIgnoreCase);

@@ -1,37 +1,57 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ImageManager.Models;
 using ImageManager.Services;
-using System.Linq;
 
 namespace ImageManager.ViewModels
 {
+    /// <summary>
+    /// メイン画面（MainWindow）のUI状態およびビジネスロジックを統括するViewModelクラス。
+    /// フォルダ走査、非同期サムネイル読み込み、ソート・フィルタリング（お気に入り・レーティング・Exif撮影日）、
+    /// 複数選択、クリップボード（コピー・切り取り・貼り付け）、ライブラリ管理、設定永続化を提供します。
+    /// </summary>
     public partial class MainViewModel : ObservableObject
     {
         private readonly IFileSystemService _fileSystemService;
         private readonly ISettingsService _settingsService;
+        private readonly Microsoft.UI.Dispatching.DispatcherQueue? _dispatcherQueue;
+        private readonly DatabaseService _databaseService;
 
+        /// <summary>ファイルシステムサービスへの参照を取得します。</summary>
         public IFileSystemService FileSystemService => _fileSystemService;
 
+        /// <summary>現在選択されているフォルダの絶対パス</summary>
         [ObservableProperty]
         private string _currentFolderPath = string.Empty;
 
+        /// <summary>
+        /// 選択フォルダ変更時、貼り付けコマンドの有効状態（CanPaste）を更新します。
+        /// </summary>
+        /// <param name="value">変更後のフォルダパス</param>
         partial void OnCurrentFolderPathChanged(string value)
         {
             CanPaste = !string.IsNullOrEmpty(value) && _clipboardFilePaths.Count > 0;
         }
 
+        /// <summary>アセンブリから取得したアプリケーションバージョン文字列</summary>
         public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.1.0"}";
 
+        /// <summary>現在表示中の画像ファイル一覧コレクション</summary>
         [ObservableProperty]
         private ObservableCollection<ImageFile> _images = new();
 
+        /// <summary>現在フォーカスまたは単一選択されている画像</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsSingleImageSelected))]
         private ImageFile? _selectedImage;
 
+        /// <summary>複数選択されている画像のコレクション</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(SelectedImagesCount))]
         [NotifyPropertyChangedFor(nameof(IsSingleImageSelected))]
@@ -40,24 +60,50 @@ namespace ImageManager.ViewModels
         [NotifyPropertyChangedFor(nameof(MultiSelectionSummary))]
         private ObservableCollection<ImageFile> _selectedImages = new();
 
+        /// <summary>選択中の画像件数</summary>
         public int SelectedImagesCount => SelectedImages.Count;
+
+        /// <summary>1件のみ画像が選択されているかどうか</summary>
         public bool IsSingleImageSelected => SelectedImages.Count == 1 && SelectedImage != null;
+
+        /// <summary>複数件の画像が選択されているかどうか</summary>
         public bool HasMultipleImagesSelected => SelectedImages.Count > 1;
+
+        /// <summary>1件以上の画像が選択されているかどうか</summary>
         public bool HasAnyImageSelected => SelectedImages.Count > 0;
+
+        /// <summary>複数選択状態の概要テキスト（例: "3 件の画像を選択中"）</summary>
         public string MultiSelectionSummary => $"{SelectedImages.Count} 件の画像を選択中";
 
+        /// <summary>クリップボードに画像が存在し、貼り付け操作が可能であるか</summary>
         [ObservableProperty]
         private bool _canPaste;
 
+        /// <summary>クリップボード保持中のファイルパス一覧</summary>
         private readonly List<string> _clipboardFilePaths = new();
+
+        /// <summary>クリップボード操作が「切り取り（Cut）」であるか</summary>
         private bool _isClipboardCut = false;
+
+        /// <summary>クリップボードに保持されたファイルパスの読み取り専用リスト</summary>
         public IReadOnlyList<string> ClipboardFilePaths => _clipboardFilePaths;
+
+        /// <summary>クリップボードが切り取り状態であるか</summary>
         public bool IsClipboardCut => _isClipboardCut;
 
+        /// <summary>フォルダ選択時にツリービューへ選択状態を伝播するイベント</summary>
         public event System.EventHandler<DirectoryNodeViewModel>? FolderSelectedEvent;
+
+        /// <summary>ローカライズ文字列キーによるダイアログ表示要求イベント</summary>
         public event System.EventHandler<(string titleKey, string messageKey)>? ShowMessageRequested;
+
+        /// <summary>直接指定文字列によるダイアログ表示要求イベント</summary>
         public event System.EventHandler<(string title, string message)>? ShowDirectMessageRequested;
 
+        /// <summary>
+        /// 選択画像変更時にExifの非同期読み込みを開始し、最終選択ファイルを設定へ保存します。
+        /// </summary>
+        /// <param name="value">変更後の選択画像</param>
         partial void OnSelectedImageChanged(ImageFile? value)
         {
             if (value != null)
@@ -72,10 +118,15 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>サムネイルグリッドのアイコン表示サイズ（ピクセル）</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ThumbnailPanelWidth))]
         private double _thumbnailSize = 100;
 
+        /// <summary>
+        /// サムネイルサイズ変更時に設定へ保存します。
+        /// </summary>
+        /// <param name="value">変更後のサイズ</param>
         partial void OnThumbnailSizeChanged(double value)
         {
             var settings = _settingsService.Load();
@@ -86,29 +137,41 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>サムネイルアイテム全体の幅（余白を含む）</summary>
         public double ThumbnailPanelWidth => ThumbnailSize + 20;
 
+        /// <summary>ドライブおよびフォルダツリーのルートコレクション</summary>
         [ObservableProperty]
         private ObservableCollection<DirectoryNodeViewModel> _folders = new();
 
+        /// <summary>お気に入りフォルダパスのコレクション</summary>
         [ObservableProperty]
         private ObservableCollection<string> _favoriteFolders = new();
 
+        /// <summary>最近開いたフォルダ履歴のコレクション</summary>
         [ObservableProperty]
         private ObservableCollection<string> _historyFolders = new();
 
+        /// <summary>登録済みカスタムライブラリグループのコレクション</summary>
         [ObservableProperty]
         private ObservableCollection<LibraryNodeViewModel> _libraries = new();
 
+        /// <summary>ソート対象項目のインデックス（0: 更新日時, 1: 撮影日時, 2: レーティング）</summary>
         [ObservableProperty]
-        private int _sortFieldIndex = 0; // 0: LastWriteTime, 1: DateTaken
+        private int _sortFieldIndex = 0;
 
+        /// <summary>ソート昇順/降順のインデックス（0: 昇順, 1: 降順）</summary>
         [ObservableProperty]
-        private int _sortDirectionIndex = 1; // 0: Ascending, 1: Descending
+        private int _sortDirectionIndex = 1;
 
+        /// <summary>お気に入りのみ表示するフィルターフラグ</summary>
         [ObservableProperty]
         private bool _showOnlyFavorites;
 
+        /// <summary>
+        /// お気に入りフィルター切り替え時に画像一覧を再読み込みします。
+        /// </summary>
+        /// <param name="value">変更後のフィルターフラグ</param>
         partial void OnShowOnlyFavoritesChanged(bool value)
         {
             if (!string.IsNullOrEmpty(CurrentFolderPath))
@@ -117,8 +180,12 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>現在実行中の画像読み込み非同期タスク</summary>
         public Task? CurrentLoadTask { get; private set; }
 
+        /// <summary>
+        /// 現在のフォルダの画像一覧を強制的に再読み込みします。
+        /// </summary>
         public async Task ReloadCurrentFolderAsync()
         {
             if (!string.IsNullOrEmpty(CurrentFolderPath))
@@ -127,9 +194,14 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>レーティングフィルターのインデックス（0: すべて, 1〜5: ★1〜★5, 6: レーティングなし）</summary>
         [ObservableProperty]
-        private int _ratingFilterIndex = 0; // 0: All, 1: ★1, 2: ★2, 3: ★3, 4: ★4, 5: ★5, 6: No Rating (0)
+        private int _ratingFilterIndex = 0;
 
+        /// <summary>
+        /// レーティングフィルター変更時に設定を保存し、画像一覧を再絞り込みします。
+        /// </summary>
+        /// <param name="value">変更後のインデックス</param>
         partial void OnRatingFilterIndexChanged(int value)
         {
             var settings = _settingsService.Load();
@@ -145,6 +217,10 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 指定画像の「お気に入り」状態を反転（トグル）します。
+        /// </summary>
+        /// <param name="image">対象の画像モデル</param>
         [RelayCommand]
         private void ToggleFavorite(ImageFile? image)
         {
@@ -156,6 +232,10 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 選択中の画像（単一または複数）に指定されたレーティング（0〜5）を一括設定します。
+        /// </summary>
+        /// <param name="parameter">レーティング値（int または string）</param>
         [RelayCommand]
         public void SetRating(object? parameter)
         {
@@ -175,6 +255,10 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 指定した星のレーティングをトグル設定します（既に同じ星が設定されていれば0に解除）。
+        /// </summary>
+        /// <param name="parameter">星番号（1〜5）</param>
         [RelayCommand]
         public void ToggleStarRating(object? parameter)
         {
@@ -194,6 +278,9 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 現在のレーティングフィルター条件に合致しなくなった画像を一覧から除外します。
+        /// </summary>
         private void CheckAndRemoveIfFilteredOut(ImageFile image)
         {
             if (RatingFilterIndex >= 1 && RatingFilterIndex <= 5 && image.Rating != RatingFilterIndex)
@@ -208,6 +295,9 @@ namespace ImageManager.ViewModels
 
         private bool _isSorting = false;
 
+        /// <summary>
+        /// ソート項目変更時のハンドラ。
+        /// </summary>
         partial void OnSortFieldIndexChanged(int value)
         {
             var settings = _settingsService.Load();
@@ -220,6 +310,9 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// ソート昇順/降順変更時のハンドラ。
+        /// </summary>
         partial void OnSortDirectionIndexChanged(int value)
         {
             var settings = _settingsService.Load();
@@ -232,6 +325,10 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 指定された画像リストのExifメタデータを並列（最大4並行）で非同期読み込みします。
+        /// </summary>
+        /// <param name="items">対象画像リスト</param>
         private static async Task LoadExifForListAsync(IEnumerable<ImageFile> items)
         {
             var unloaded = items.Where(i => !i.IsExifLoaded).ToList();
@@ -257,6 +354,9 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 現在の画像一覧をソート設定（更新日時・撮影日時・レーティング）に基づいて並び替えます。
+        /// </summary>
         private async Task SortImagesAsync()
         {
             if (Images.Count == 0 || _isSorting) return;
@@ -268,21 +368,21 @@ namespace ImageManager.ViewModels
 
                 var sorted = await Task.Run(() =>
                 {
-                    if (SortFieldIndex == 0) // LastWriteTime
+                    if (SortFieldIndex == 0) // 更新日時 (LastWriteTime)
                     {
-                        if (SortDirectionIndex == 0) // Ascending
+                        if (SortDirectionIndex == 0) // 昇順
                             return list.OrderBy(i => i.LastWriteTime).ToList();
-                        else
+                        else // 降順
                             return list.OrderByDescending(i => i.LastWriteTime).ToList();
                     }
-                    else if (SortFieldIndex == 1) // DateTaken
+                    else if (SortFieldIndex == 1) // 撮影日時 (DateTaken)
                     {
                         if (SortDirectionIndex == 0)
                             return list.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                         else
                             return list.OrderByDescending(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                     }
-                    else // Rating
+                    else // レーティング (Rating)
                     {
                         if (SortDirectionIndex == 0)
                             return list.OrderBy(i => i.Rating).ThenByDescending(i => i.LastWriteTime).ToList();
@@ -295,7 +395,7 @@ namespace ImageManager.ViewModels
                 {
                     var selected = SelectedImage;
                     
-                    // Assign new collection at once to prevent thousands of UI layout Move events
+                    // UIレイアウトイベントの連続発火を防ぐためコレクションを一括再作成
                     Images = new ObservableCollection<ImageFile>(sorted);
 
                     if (selected != null && Images.Contains(selected))
@@ -304,7 +404,7 @@ namespace ImageManager.ViewModels
                     }
                 });
 
-                // Load EXIF asynchronously in background if DateTaken sorting selected
+                // 撮影日時ソートの場合、未ロードのExifがあればバックグラウンドで補完し必要に応じて再ソート
                 if (SortFieldIndex == 1)
                 {
                     _ = Task.Run(async () =>
@@ -336,9 +436,12 @@ namespace ImageManager.ViewModels
             }
         }
 
-        private readonly Microsoft.UI.Dispatching.DispatcherQueue? _dispatcherQueue;
-        private readonly DatabaseService _databaseService;
-
+        /// <summary>
+        /// <see cref="MainViewModel"/> クラスの新しいインスタンスを初期化します。
+        /// </summary>
+        /// <param name="fileSystemService">ファイルシステム操作サービス</param>
+        /// <param name="settingsService">設定管理サービス</param>
+        /// <param name="databaseService">データベースサービス（省略時はシングルトン）</param>
         public MainViewModel(IFileSystemService fileSystemService, ISettingsService settingsService, DatabaseService? databaseService = null)
         {
             _fileSystemService = fileSystemService;
@@ -355,6 +458,10 @@ namespace ImageManager.ViewModels
             LoadDrives();
         }
 
+        /// <summary>
+        /// UIスレッド上でアクションを実行します。
+        /// </summary>
+        /// <param name="action">実行する処理</param>
         private void RunOnUIThread(System.Action action)
         {
             if (_dispatcherQueue != null)
@@ -367,6 +474,9 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// アプリ起動時に保存された設定（お気に入りフォルダ、履歴、ライブラリ、前回のフォルダ等）を非同期で復元します。
+        /// </summary>
         public async Task InitializeAsync()
         {
             var settings = _settingsService.Load();
@@ -436,6 +546,10 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 指定されたパスに対応するツリービューノードを再帰的に展開・選択します。
+        /// </summary>
+        /// <param name="path">フォルダパス</param>
         private async Task ExpandAndSelectPathAsync(string path)
         {
             var parts = path.Split(System.IO.Path.DirectorySeparatorChar, System.StringSplitOptions.RemoveEmptyEntries);
@@ -466,8 +580,6 @@ namespace ImageManager.ViewModels
                 targetNode.IsSelected = true;
                 FolderSelectedEvent?.Invoke(this, targetNode);
                 
-                // TreeView item selection logic will trigger the SelectedItemChanged event, 
-                // but just in case, we also explicitly load the images here if the current path isn't set yet.
                 if (string.IsNullOrEmpty(CurrentFolderPath))
                 {
                     await SelectFolderFromTreeAsync(targetNode.FullPath);
@@ -475,6 +587,7 @@ namespace ImageManager.ViewModels
             }
         }
 
+        #region Shell API Interop for Display Names
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         private struct SHFILEINFO
         {
@@ -492,6 +605,9 @@ namespace ImageManager.ViewModels
         [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbFileInfo, uint uFlags);
 
+        /// <summary>
+        /// Windows Shell API（SHGetFileInfo）を用いてエクスプローラーと同等のドライブ表示名を取得します。
+        /// </summary>
         private static string GetShellDisplayName(string path)
         {
             try
@@ -506,7 +622,11 @@ namespace ImageManager.ViewModels
             catch { }
             return string.Empty;
         }
+        #endregion
 
+        /// <summary>
+        /// システム内の準備完了状態の全ドライブ（固定・リムーバブル・ネットワーク）を列挙しツリーに追加します。
+        /// </summary>
         private void LoadDrives()
         {
             try
@@ -557,6 +677,11 @@ namespace ImageManager.ViewModels
             catch { }
         }
 
+        /// <summary>
+        /// ツリービューからフォルダが選択された際の処理。
+        /// 履歴追加、設定保存、画像読み込みを実行します。
+        /// </summary>
+        /// <param name="folderPath">選択されたフォルダパス</param>
         public async Task SelectFolderFromTreeAsync(string folderPath)
         {
             if (!string.IsNullOrEmpty(folderPath) && CurrentFolderPath != folderPath)
@@ -572,6 +697,9 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// フォルダ選択ダイアログを表示してフォルダを開くコマンド。
+        /// </summary>
         [RelayCommand]
         private async Task SelectFolderAsync()
         {
@@ -590,6 +718,10 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 指定フォルダ内の画像を読み込みます。
+        /// </summary>
+        /// <param name="folderPath">フォルダパス</param>
         private async Task LoadImagesAsync(string folderPath)
         {
             var task = LoadImagesInternalAsync(folderPath);
@@ -597,6 +729,11 @@ namespace ImageManager.ViewModels
             await task;
         }
 
+        /// <summary>
+        /// 画像一覧の内部読み込み処理。
+        /// データベースからキャッシュ済みメタデータを一括マージし、フィルタ・ソートを適用してUIへ反映します。
+        /// </summary>
+        /// <param name="folderPath">フォルダパス</param>
         private async Task LoadImagesInternalAsync(string folderPath)
         {
             RunOnUIThread(() =>
@@ -618,7 +755,7 @@ namespace ImageManager.ViewModels
                 
                 string libId = GetFolderLibraryId(folderPath);
 
-                // Fast metadata merge from cached DB records (Single query)
+                // DBキャッシュから1回のクエリでメタデータ（お気に入り・レーティング・Exif撮影日等）を高速マージ
                 var cachedMap = _databaseService.GetFolderImageRecordsMap(folderPath);
                 foreach (var img in newImages)
                 {
@@ -640,7 +777,7 @@ namespace ImageManager.ViewModels
                     }
                 }
 
-                // Run batch DB sync asynchronously in background without blocking UI thumbnail loading
+                // UIのサムネイル表示をブロックしないようバックグラウンドでDBバッチ同期を実行
                 var imagesForSync = newImages.ToList();
                 _ = Task.Run(() =>
                 {
@@ -657,7 +794,7 @@ namespace ImageManager.ViewModels
                     newImages = newImages.Where(i => i.IsFavorite).ToList();
                 }
 
-                // 2. レートフィルター (AND条件)
+                // 2. レーティングフィルター
                 if (RatingFilterIndex >= 1 && RatingFilterIndex <= 5)
                 {
                     int targetRating = RatingFilterIndex;
@@ -668,22 +805,22 @@ namespace ImageManager.ViewModels
                     newImages = newImages.Where(i => i.Rating == 0).ToList();
                 }
 
-                // 3. ソート
-                if (SortFieldIndex == 0) // LastWriteTime
+                // 3. ソート適用
+                if (SortFieldIndex == 0) // 更新日時
                 {
-                    if (SortDirectionIndex == 0) // Ascending
+                    if (SortDirectionIndex == 0)
                         newImages = newImages.OrderBy(i => i.LastWriteTime).ToList();
                     else
                         newImages = newImages.OrderByDescending(i => i.LastWriteTime).ToList();
                 }
-                else if (SortFieldIndex == 1) // DateTaken
+                else if (SortFieldIndex == 1) // 撮影日時
                 {
                     if (SortDirectionIndex == 0)
                         newImages = newImages.OrderBy(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                     else
                         newImages = newImages.OrderByDescending(i => string.IsNullOrWhiteSpace(i.DateTaken) ? i.LastWriteTime.ToString("yyyy:MM:dd HH:mm:ss") : i.DateTaken).ToList();
                 }
-                else // Rating
+                else // レーティング
                 {
                     if (SortDirectionIndex == 0)
                         newImages = newImages.OrderBy(i => i.Rating).ThenByDescending(i => i.LastWriteTime).ToList();
@@ -725,7 +862,8 @@ namespace ImageManager.ViewModels
                     OnPropertyChanged(nameof(MultiSelectionSummary));
                 });
 
-                if (SortFieldIndex == 1) // DateTaken background loading
+                // 撮影日時ソート時のExifバックグラウンドロード
+                if (SortFieldIndex == 1)
                 {
                     await LoadExifForListAsync(newImages);
 
@@ -745,6 +883,9 @@ namespace ImageManager.ViewModels
             });
         }
 
+        /// <summary>
+        /// フォルダパスから一意のライブラリ識別子文字列（folder_XXXX）を生成します。
+        /// </summary>
         private static string GetFolderLibraryId(string folderPath)
         {
             if (string.IsNullOrEmpty(folderPath)) return "folder_empty";
@@ -753,6 +894,9 @@ namespace ImageManager.ViewModels
             return "folder_" + System.Convert.ToHexString(hash).Substring(0, 16);
         }
 
+        /// <summary>
+        /// フォルダをお気に入りに追加するコマンド。
+        /// </summary>
         [RelayCommand]
         private void AddFavoriteFolder(object? parameter)
         {
@@ -773,6 +917,9 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// フォルダをお気に入りから削除するコマンド。
+        /// </summary>
         [RelayCommand]
         private void RemoveFavoriteFolder(string? folderPath)
         {
@@ -783,19 +930,20 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// お気に入りフォルダを選択して開くコマンド。
+        /// </summary>
         [RelayCommand]
         private async Task SelectFavoriteFolderAsync(string? folderPath)
         {
             if (!string.IsNullOrEmpty(folderPath) && System.IO.Directory.Exists(folderPath))
             {
-                // 画像一覧を直接更新する
                 await SelectFolderFromTreeAsync(folderPath);
-                
-                // ツリービュー側の選択状態の同期を試みる（バックグラウンド）
                 _ = ExpandAndSelectPathAsync(folderPath);
             }
         }
 
+        /// <summary>お気に入りフォルダ一覧を設定ファイルへ保存します。</summary>
         private void SaveFavorites()
         {
             var settings = _settingsService.Load();
@@ -803,20 +951,20 @@ namespace ImageManager.ViewModels
             _settingsService.Save(settings);
         }
 
+        /// <summary>
+        /// 最近開いたフォルダ履歴に追加します（重複排除・最大20件保持）。
+        /// </summary>
         private void AddHistoryFolder(string folderPath)
         {
             if (string.IsNullOrEmpty(folderPath)) return;
 
-            // Remove if exists to avoid duplicates
             if (HistoryFolders.Contains(folderPath))
             {
                 HistoryFolders.Remove(folderPath);
             }
 
-            // Add to the top of the list (most recent)
             HistoryFolders.Insert(0, folderPath);
 
-            // Optional: limit history size, e.g., to 20
             while (HistoryFolders.Count > 20)
             {
                 HistoryFolders.RemoveAt(HistoryFolders.Count - 1);
@@ -825,6 +973,7 @@ namespace ImageManager.ViewModels
             SaveHistory();
         }
 
+        /// <summary>履歴フォルダを削除するコマンド。</summary>
         [RelayCommand]
         private void RemoveHistoryFolder(string? folderPath)
         {
@@ -835,6 +984,7 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>履歴フォルダを選択して開くコマンド。</summary>
         [RelayCommand]
         private async Task SelectHistoryFolderAsync(string? folderPath)
         {
@@ -845,6 +995,7 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>履歴フォルダ一覧を設定ファイルへ保存します。</summary>
         private void SaveHistory()
         {
             var settings = _settingsService.Load();
@@ -852,6 +1003,9 @@ namespace ImageManager.ViewModels
             _settingsService.Save(settings);
         }
 
+        /// <summary>
+        /// アプリ設定およびデータベースをZIP形式またはJSON形式でエクスポートするコマンド。
+        /// </summary>
         [RelayCommand]
         private async Task ExportSettingsAsync()
         {
@@ -875,6 +1029,9 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 設定およびデータベースバックアップをインポートして復元するコマンド。
+        /// </summary>
         [RelayCommand]
         private async Task ImportSettingsAsync()
         {
@@ -957,6 +1114,11 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// 新しい仮想ライブラリグループを作成します。
+        /// </summary>
+        /// <param name="name">ライブラリ名</param>
+        /// <returns>作成された <see cref="LibraryNodeViewModel"/></returns>
         public LibraryNodeViewModel CreateLibrary(string name)
         {
             var library = new LibraryGroup
@@ -978,6 +1140,10 @@ namespace ImageManager.ViewModels
             return libNode;
         }
 
+        /// <summary>
+        /// 指定されたライブラリを削除します。
+        /// </summary>
+        /// <param name="libraryNode">削除対象のライブラリノード</param>
         public void DeleteLibrary(LibraryNodeViewModel libraryNode)
         {
             if (libraryNode == null || !libraryNode.IsLibrary) return;
@@ -990,6 +1156,11 @@ namespace ImageManager.ViewModels
             SaveLibrariesToSettings();
         }
 
+        /// <summary>
+        /// ライブラリの名前を変更します。
+        /// </summary>
+        /// <param name="libraryNode">対象ライブラリノード</param>
+        /// <param name="newName">新しいライブラリ名</param>
         public void RenameLibrary(LibraryNodeViewModel libraryNode, string newName)
         {
             if (libraryNode == null || !libraryNode.IsLibrary || string.IsNullOrWhiteSpace(newName)) return;
@@ -997,6 +1168,12 @@ namespace ImageManager.ViewModels
             SaveLibrariesToSettings();
         }
 
+        /// <summary>
+        /// ライブラリにフォルダを登録します。
+        /// </summary>
+        /// <param name="libraryNode">親ライブラリノード</param>
+        /// <param name="folderPath">登録するフォルダパス</param>
+        /// <returns>作成された子フォルダノード</returns>
         public LibraryNodeViewModel? AddFolderToLibrary(LibraryNodeViewModel libraryNode, string folderPath)
         {
             if (libraryNode == null || !libraryNode.IsLibrary || string.IsNullOrWhiteSpace(folderPath)) return null;
@@ -1025,6 +1202,10 @@ namespace ImageManager.ViewModels
             return folderNode;
         }
 
+        /// <summary>
+        /// ライブラリから登録フォルダのリンクを解除（削除）します。
+        /// </summary>
+        /// <param name="folderNode">削除対象のフォルダノード</param>
         public void RemoveFolderFromLibrary(LibraryNodeViewModel folderNode)
         {
             if (folderNode == null || folderNode.IsLibrary || folderNode.ParentLibrary == null) return;
@@ -1032,6 +1213,9 @@ namespace ImageManager.ViewModels
             SaveLibrariesToSettings();
         }
 
+        /// <summary>
+        /// 現在のライブラリ構造を設定ファイルおよびデータベースへ同期保存します。
+        /// </summary>
         public void SaveLibrariesToSettings()
         {
             var settings = _settingsService.Load();
@@ -1053,6 +1237,12 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// ライブラリ内フォルダのパスが移動・変更された場合に、データベースのパス追跡および設定を更新します。
+        /// </summary>
+        /// <param name="folderNode">対象フォルダノード</param>
+        /// <param name="newFolderPath">新しいフォルダパス</param>
+        /// <returns>成功時は true</returns>
         public async Task<bool> RelocateLibraryFolderAsync(LibraryNodeViewModel folderNode, string newFolderPath)
         {
             if (folderNode == null || string.IsNullOrWhiteSpace(newFolderPath) || !System.IO.Directory.Exists(newFolderPath))
@@ -1079,6 +1269,10 @@ namespace ImageManager.ViewModels
 
         #region Multi-Selection and File Operations
 
+        /// <summary>
+        /// UI上の選択画像コレクションを同期更新します。
+        /// </summary>
+        /// <param name="selected">選択された画像コレクション</param>
         public void UpdateSelectedImages(IEnumerable<ImageFile> selected)
         {
             var list = selected.ToList();
@@ -1104,6 +1298,9 @@ namespace ImageManager.ViewModels
             OnPropertyChanged(nameof(MultiSelectionSummary));
         }
 
+        /// <summary>
+        /// 選択中の画像をクリップボードにコピーとして保持します。
+        /// </summary>
         public void CopySelectedToClipboard()
         {
             if (SelectedImages.Count == 0) return;
@@ -1113,6 +1310,9 @@ namespace ImageManager.ViewModels
             CanPaste = !string.IsNullOrEmpty(CurrentFolderPath) && _clipboardFilePaths.Count > 0;
         }
 
+        /// <summary>
+        /// 選択中の画像をクリップボードに切り取り（移動）として保持します。
+        /// </summary>
         public void CutSelectedToClipboard()
         {
             if (SelectedImages.Count == 0) return;
@@ -1122,6 +1322,12 @@ namespace ImageManager.ViewModels
             CanPaste = !string.IsNullOrEmpty(CurrentFolderPath) && _clipboardFilePaths.Count > 0;
         }
 
+        /// <summary>
+        /// 指定されたファイル群を対象ディレクトリへ非同期コピーします（同名ファイルは「 - コピー」を付与して自動リネーム）。
+        /// </summary>
+        /// <param name="filePaths">コピー元ファイルパス一覧</param>
+        /// <param name="destDirectory">コピー先フォルダ</param>
+        /// <returns>正常にコピーされた件数</returns>
         public async Task<int> CopyFilesToFolderAsync(IEnumerable<string> filePaths, string destDirectory)
         {
             var files = filePaths.Where(f => System.IO.File.Exists(f)).ToList();
@@ -1173,6 +1379,12 @@ namespace ImageManager.ViewModels
             return copiedCount;
         }
 
+        /// <summary>
+        /// 指定されたファイル群を対象ディレクトリへ非同期移動します。
+        /// </summary>
+        /// <param name="filePaths">移動元ファイルパス一覧</param>
+        /// <param name="destDirectory">移動先フォルダ</param>
+        /// <returns>正常に移動された件数</returns>
         public async Task<int> MoveFilesToFolderAsync(IEnumerable<string> filePaths, string destDirectory)
         {
             var files = filePaths.Where(f => System.IO.File.Exists(f)).ToList();
@@ -1192,7 +1404,6 @@ namespace ImageManager.ViewModels
                         string fileName = System.IO.Path.GetFileName(srcPath);
                         string destPath = GetUniqueDestinationPath(destDirectory, fileName);
                         
-                        // If destination is exact same path, skip
                         if (srcPath.Equals(destPath, System.StringComparison.OrdinalIgnoreCase))
                             continue;
 
@@ -1246,6 +1457,11 @@ namespace ImageManager.ViewModels
             return movedCount;
         }
 
+        /// <summary>
+        /// クリップボードに保持されているファイルを対象フォルダへ貼り付けます。
+        /// </summary>
+        /// <param name="targetFolder">貼り付け先フォルダ（省略時は現在フォルダ）</param>
+        /// <returns>貼り付け処理されたファイル件数</returns>
         public async Task<int> PasteFromClipboardAsync(string? targetFolder = null)
         {
             string destDir = targetFolder ?? CurrentFolderPath;
@@ -1267,6 +1483,10 @@ namespace ImageManager.ViewModels
             return count;
         }
 
+        /// <summary>
+        /// 選択中の画像をディスク上から完全に削除します。
+        /// </summary>
+        /// <returns>削除されたファイル件数</returns>
         public async Task<int> DeleteSelectedImagesAsync()
         {
             var list = SelectedImages.ToList();
@@ -1310,6 +1530,9 @@ namespace ImageManager.ViewModels
             return deletedCount;
         }
 
+        /// <summary>
+        /// ファイル重複時に「- コピー」「- コピー (2)」などの一意のファイル名を生成します。
+        /// </summary>
         private static string GetUniqueDestinationPath(string destDir, string originalFileName)
         {
             string nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(originalFileName);
@@ -1329,6 +1552,9 @@ namespace ImageManager.ViewModels
             return destPath;
         }
 
+        /// <summary>
+        /// タイトルとメッセージを直接指定してダイアログ表示イベントを発火します。
+        /// </summary>
         public void RaiseDirectMessage(string title, string message)
         {
             ShowDirectMessageRequested?.Invoke(this, (title, message));

@@ -9,6 +9,11 @@ using ImageManager.Services;
 
 namespace ImageManager;
 
+/// <summary>
+/// 画像の自動分類実行ダイアログクラス。
+/// 分類エンジンの選択（Ollama ローカルVLM / ONNX DirectML / ルールベース解析）、
+/// 出力モード（フォルダへコピー/移動/タグ付与のみ）の指定、および進捗表示・キャンセル処理を提供します。
+/// </summary>
 public sealed partial class ClassifyDialog : ContentDialog
 {
     private readonly ImageClassifierService _classifierService;
@@ -16,6 +21,12 @@ public sealed partial class ClassifyDialog : ContentDialog
     private readonly string _targetFolderPath;
     private CancellationTokenSource? _cts;
 
+    /// <summary>
+    /// <see cref="ClassifyDialog"/> クラスの新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="classifierService">画像分類サービスクラス</param>
+    /// <param name="images">分類対象の画像コレクション</param>
+    /// <param name="targetFolderPath">ベース出力フォルダパス</param>
     public ClassifyDialog(ImageClassifierService classifierService, IEnumerable<ImageFile> images, string targetFolderPath)
     {
         _classifierService = classifierService;
@@ -31,11 +42,17 @@ public sealed partial class ClassifyDialog : ContentDialog
         this.CloseButtonClick += ClassifyDialog_CloseButtonClick;
     }
 
+    /// <summary>
+    /// ダイアログ表示時のイベントハンドラ。Ollama の接続確認とモデル一覧の非同期取得を行います。
+    /// </summary>
     private async void ClassifyDialog_Loaded(object sender, RoutedEventArgs e)
     {
         await LoadOllamaModelsAsync();
     }
 
+    /// <summary>
+    /// Ollama サーバーの動作状態を確認し、利用可能な Vision モデル一覧をコンボボックスへバインドします。
+    /// </summary>
     private async Task LoadOllamaModelsAsync()
     {
         bool available = await _classifierService.Ollama.IsAvailableAsync();
@@ -46,7 +63,7 @@ public sealed partial class ClassifyDialog : ContentDialog
             {
                 OllamaModelComboBox.ItemsSource = models;
                 
-                // Select default or first vision-like model
+                // llava, vision, moondream などの Vision 対応モデルを優先選択
                 int defaultIndex = models.FindIndex(m => m.Contains("llava", StringComparison.OrdinalIgnoreCase) || 
                                                          m.Contains("vision", StringComparison.OrdinalIgnoreCase) ||
                                                          m.Contains("moondream", StringComparison.OrdinalIgnoreCase));
@@ -65,6 +82,9 @@ public sealed partial class ClassifyDialog : ContentDialog
         }
     }
 
+    /// <summary>
+    /// 判定エンジンラジオボタン切り替え時のイベントハンドラ。
+    /// </summary>
     private void EngineRadio_Checked(object sender, RoutedEventArgs e)
     {
         if (OllamaSettingsPanel != null && OllamaRadio != null)
@@ -74,6 +94,9 @@ public sealed partial class ClassifyDialog : ContentDialog
         UpdateEngineStatusText();
     }
 
+    /// <summary>
+    /// 現在選択されているエンジンの動作状態テキスト（GPU加速、CPU、Ollama等）を更新します。
+    /// </summary>
     private void UpdateEngineStatusText()
     {
         if (DeviceStatusText == null || _classifierService == null) return;
@@ -91,13 +114,17 @@ public sealed partial class ClassifyDialog : ContentDialog
         }
     }
 
+    /// <summary>
+    /// 「実行」ボタン押下時のイベントハンドラ。分類処理を開始し、リアルタイムに進捗を表示します。
+    /// </summary>
     private async void ClassifyDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
         var deferral = args.GetDeferral();
         try
         {
-            args.Cancel = true; // Prevent dialog from closing immediately
+            args.Cancel = true; // 処理中はダイアログが閉じないようにキャンセル
 
+            // 処理中は操作コントロールを無効化
             RuleBasedRadio.IsEnabled = false;
             OllamaRadio.IsEnabled = false;
             OllamaModelComboBox.IsEnabled = false;
@@ -145,6 +172,9 @@ public sealed partial class ClassifyDialog : ContentDialog
         }
     }
 
+    /// <summary>
+    /// 「キャンセル / 閉じる」ボタン押下時のイベントハンドラ。実行中の処理を中断します。
+    /// </summary>
     private void ClassifyDialog_CloseButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
         _cts?.Cancel();

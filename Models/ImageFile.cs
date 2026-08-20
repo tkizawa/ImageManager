@@ -7,56 +7,81 @@ using ImageManager.Services;
 
 namespace ImageManager.Models
 {
+    /// <summary>
+    /// アプリケーション内で扱う個々の画像ファイルを表すモデルクラス。
+    /// ファイル情報、Exifメタデータ（撮影日時・カメラ・レンズ・露出情報等）、
+    /// レーティング、お気に入り状態、サムネイル読み込み処理を提供します。
+    /// </summary>
     public partial class ImageFile : ObservableObject
     {
+        /// <summary>画像ファイルの絶対パス</summary>
         [ObservableProperty]
         private string _filePath;
 
+        /// <summary>画像ファイル名（拡張子含む）</summary>
         [ObservableProperty]
         private string _fileName;
 
+        /// <summary>ファイルサイズ（バイト単位）</summary>
         [ObservableProperty]
         private long _fileSize;
 
+        /// <summary>ファイルの作成日時</summary>
         [ObservableProperty]
         private DateTime _creationTime;
 
+        /// <summary>ファイルの最終更新日時</summary>
         [ObservableProperty]
         private DateTime _lastWriteTime;
 
+        /// <summary>画像の幅（ピクセル）</summary>
         [ObservableProperty]
         private int _imageWidth;
 
+        /// <summary>画像の高さ（ピクセル）</summary>
         [ObservableProperty]
         private int _imageHeight;
 
+        /// <summary>Exifから取得した撮影日時文字列</summary>
         [ObservableProperty]
         private string _dateTaken = string.Empty;
 
+        /// <summary>撮影に使用されたカメラのモデル名</summary>
         [ObservableProperty]
         private string _cameraModel = string.Empty;
 
+        /// <summary>撮影に使用されたレンズのモデル名</summary>
         [ObservableProperty]
         private string _lens = string.Empty;
 
+        /// <summary>シャッタースピード / 露光時間（例: "1/250"）</summary>
         [ObservableProperty]
         private string _exposureTime = string.Empty;
 
+        /// <summary>絞り値（F値、例: "2.8"）</summary>
         [ObservableProperty]
         private string _fNumber = string.Empty;
 
+        /// <summary>ISO感度（例: "100", "3200"）</summary>
         [ObservableProperty]
         private string _isoSpeed = string.Empty;
 
+        /// <summary>焦点距離（例: "50.0 mm"）</summary>
         [ObservableProperty]
         private string _focalLength = string.Empty;
 
+        /// <summary>画像分類カテゴリ（AIまたは手動で割り当てられた分類名）</summary>
         [ObservableProperty]
         private string _category = string.Empty;
 
+        /// <summary>お気に入り登録されているかどうか</summary>
         [ObservableProperty]
         private bool _isFavorite;
 
+        /// <summary>
+        /// お気に入り状態が変更された際にデータベースへ自動反映します。
+        /// </summary>
+        /// <param name="value">変更後のお気に入り状態</param>
         partial void OnIsFavoriteChanged(bool value)
         {
             if (!string.IsNullOrEmpty(FilePath))
@@ -69,9 +94,14 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>レーティング値（0: 未設定、1〜5: ★1〜★5）</summary>
         [ObservableProperty]
         private int _rating; // 0: None, 1..5: ★1..★5
 
+        /// <summary>
+        /// レーティングが変更された際に0〜5の範囲にクランプし、データベースへ反映します。
+        /// </summary>
+        /// <param name="value">変更後のレーティング値</param>
         partial void OnRatingChanged(int value)
         {
             if (value < 0 || value > 5)
@@ -95,8 +125,12 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>レーティングが1以上設定されているかを取得します。</summary>
         public bool HasRating => Rating > 0;
 
+        /// <summary>
+        /// UI表示用に星マークでフォーマットされたレーティング文字列を取得します（例: "★★★☆☆ (3)"）。
+        /// </summary>
         public string FormattedRating
         {
             get
@@ -106,12 +140,17 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>Exifメタデータがすでに読み込み済みかどうかを取得します。</summary>
         public bool IsExifLoaded { get; private set; }
 
         private Microsoft.UI.Xaml.Media.ImageSource? _thumbnailSource;
 
         private bool _isThumbnailLoading;
 
+        /// <summary>
+        /// UIバインディング用のサムネイル画像ソースを取得または設定します。
+        /// 未読み込みの場合はアクセス時に非同期読み込みを開始します。
+        /// </summary>
         public Microsoft.UI.Xaml.Media.ImageSource? ThumbnailSource
         {
             get
@@ -128,6 +167,11 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>
+        /// 画像のサムネイルを非同期に読み込みます。
+        /// ディスクキャッシュ、標準画像、RAW現像/埋め込みJPEG、OSフォールバックの順に高速読み込みを試行します。
+        /// </summary>
+        /// <param name="decodeWidth">デコード時の横幅ピクセル数（デフォルト: 300px）</param>
         public async Task LoadThumbnailAsync(int decodeWidth = 300)
         {
             if (string.IsNullOrEmpty(FilePath) || _thumbnailSource != null || _isThumbnailLoading) return;
@@ -137,6 +181,7 @@ namespace ImageManager.Models
             {
                 var dq = App.MainDispatcherQueue ?? App.MainWindow?.DispatcherQueue ?? Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
+                // UIスレッドでBitmapImageを設定するローカル関数
                 void SetUriSource(string uriPath)
                 {
                     if (dq != null && !dq.HasThreadAccess)
@@ -160,7 +205,7 @@ namespace ImageManager.Models
                     }
                 }
 
-                // Check disk cache first (RAW and Cached Standard Images)
+                // 1. ディスクキャッシュの存在確認（RAW現像済みキャッシュまたはNAS/外部ドライブの事前キャッシュ）
                 string? cacheFilePath = RawThumbnailService.GetCacheFilePath(FilePath);
                 if (cacheFilePath != null && File.Exists(cacheFilePath))
                 {
@@ -170,12 +215,12 @@ namespace ImageManager.Models
 
                 bool isRaw = RawThumbnailService.IsRawFile(FilePath);
 
-                // 標準画像（JPG, PNG, WebP等）は直接ファイルからネイティブに高速・高品質描画
+                // 2. 標準画像（JPG, PNG, WebP等）は直接ファイルからネイティブに高速・高品質描画
                 if (!isRaw)
                 {
                     SetUriSource(FilePath);
 
-                    // NASや外部ドライブ等の場合はローカルSSDキャッシュに非同期コピー
+                    // NASや外部ドライブ等の場合はローカルSSDキャッシュに非同期コピーして次回以降を高速化
                     if (cacheFilePath != null && RawThumbnailService.ShouldCacheFile(FilePath))
                     {
                         _ = Task.Run(() => RawThumbnailService.CacheStandardFileAsync(FilePath, cacheFilePath));
@@ -183,7 +228,7 @@ namespace ImageManager.Models
                     return;
                 }
 
-                // Extract JPEG from RAW
+                // 3. RAW画像から埋め込みJPEGまたは現像プレビューを高速抽出
                 var jpegBytes = await RawThumbnailService.GetEmbeddedJpegBytesAsync(FilePath);
                 if (cacheFilePath != null && File.Exists(cacheFilePath))
                 {
@@ -229,7 +274,7 @@ namespace ImageManager.Models
                     return;
                 }
 
-                // Fallback for RAW
+                // 4. フォールバック: Windows Storage API経由でのサムネイル取得
                 if (dq != null)
                 {
                     dq.TryEnqueue(async () =>
@@ -259,6 +304,11 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>
+        /// 指定されたパスの画像ファイル情報を初期化します。
+        /// ファイルサイズや作成日時・更新日時をファイルシステムから取得します。
+        /// </summary>
+        /// <param name="path">画像ファイルの絶対パス</param>
         public ImageFile(string path)
         {
             FilePath = path;
@@ -273,6 +323,9 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>
+        /// 画像ファイルからExifメタデータを非同期で読み込み、モデルのプロパティおよびデータベースへ反映します。
+        /// </summary>
         public async Task LoadExifAsync()
         {
             if (IsExifLoaded) return;
@@ -289,6 +342,7 @@ namespace ImageManager.Models
                     {
                         if (!File.Exists(FilePath)) return;
 
+                        // MetadataExtractor を使用して Exif タグを解析
                         var directories = MetadataExtractor.ImageMetadataReader.ReadMetadata(FilePath);
                         var exifIfd0 = directories.OfType<MetadataExtractor.Formats.Exif.ExifIfd0Directory>().FirstOrDefault();
                         var exifSubIfd = directories.OfType<MetadataExtractor.Formats.Exif.ExifSubIfdDirectory>().FirstOrDefault();
@@ -296,6 +350,7 @@ namespace ImageManager.Models
                         if (exifIfd0 != null)
                         {
                             cameraModel = exifIfd0.GetDescription(MetadataExtractor.Formats.Exif.ExifIfd0Directory.TagModel) ?? string.Empty;
+                            // Exif タグ 18246: Windows / XMP Rating
                             if (exifIfd0.ContainsTag(18246))
                             {
                                 var ratingStr = exifIfd0.GetDescription(18246);
@@ -329,15 +384,18 @@ namespace ImageManager.Models
             IsoSpeed = isoSpeed;
             FocalLength = focalLength;
 
+            // ファイル内に埋め込まれたレーティングが存在し、アプリ未設定の場合は同期
             if (Rating == 0 && metaRating > 0)
             {
                 Rating = metaRating;
             }
 
+            // フォーマット済みプロパティのUI更新通知
             OnPropertyChanged(nameof(FormattedDateTaken));
             OnPropertyChanged(nameof(FormattedExposureSpecs));
             OnPropertyChanged(nameof(FormattedFileSize));
 
+            // データベースにExifレコードをキャッシュ保存
             try
             {
                 DatabaseService.Instance.UpdateExifRecord(this);
@@ -345,6 +403,9 @@ namespace ImageManager.Models
             catch { }
         }
 
+        /// <summary>
+        /// UI表示用にフォーマットされた撮影日時（Exif未定義の場合は最終更新日時）を取得します。
+        /// </summary>
         public string FormattedDateTaken
         {
             get
@@ -355,6 +416,9 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>
+        /// UI表示用にフォーマットされた露出情報文字列を取得します（例: "f/2.8  |  1/250s  |  ISO 100  |  50mm"）。
+        /// </summary>
         public string FormattedExposureSpecs
         {
             get
@@ -383,6 +447,9 @@ namespace ImageManager.Models
             }
         }
 
+        /// <summary>
+        /// UI表示用にバイト単位からフォーマットされたファイルサイズ文字列を取得します（例: "12.5 MB"）。
+        /// </summary>
         public string FormattedFileSize
         {
             get
@@ -394,3 +461,4 @@ namespace ImageManager.Models
         }
     }
 }
+

@@ -11,13 +11,23 @@ using ImageManager.Services;
 
 namespace ImageManager
 {
+    /// <summary>
+    /// 外部画像編集・閲覧アプリケーション（Photoshop, GIMP, 外部ビューアー等）の
+    /// 登録・編集・削除を行う設定ダイアログクラス。
+    /// </summary>
     public sealed partial class ExternalAppsDialog : ContentDialog
     {
         private readonly ISettingsService _settingsService;
         private readonly ObservableCollection<ExternalApp> _apps = new();
 
+        /// <summary>外部アプリ設定が変更された際に発火するイベント</summary>
         public event EventHandler? SettingsChanged;
 
+        /// <summary>
+        /// <see cref="ExternalAppsDialog"/> クラスの新しいインスタンスを初期化します。
+        /// </summary>
+        /// <param name="settingsService">設定管理サービス</param>
+        /// <param name="xamlRoot">ルートXAML要素</param>
         public ExternalAppsDialog(ISettingsService settingsService, Microsoft.UI.Xaml.XamlRoot? xamlRoot = null)
         {
             this.InitializeComponent();
@@ -28,6 +38,9 @@ namespace ImageManager
             LoadApps();
         }
 
+        /// <summary>
+        /// 保存されている外部アプリ一覧を設定から読み込み、リストを構築します。
+        /// </summary>
         private void LoadApps()
         {
             _apps.Clear();
@@ -42,6 +55,9 @@ namespace ImageManager
             UpdateEmptyState();
         }
 
+        /// <summary>
+        /// 外部アプリ一覧を設定ファイルへ保存し、変更通知を発行します。
+        /// </summary>
         private void SaveApps()
         {
             var settings = _settingsService.Load();
@@ -51,11 +67,17 @@ namespace ImageManager
             UpdateEmptyState();
         }
 
+        /// <summary>
+        /// 登録アプリが0件の場合の案内表示状態を更新します。
+        /// </summary>
         private void UpdateEmptyState()
         {
             EmptyListTextBlock.Visibility = _apps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        /// <summary>
+        /// 「参照...」ボタン押下時、実行可能ファイル（.exe等）を選択するファイルピッカーを表示します。
+        /// </summary>
         private async void BrowseExecutable_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -90,6 +112,9 @@ namespace ImageManager
             }
         }
 
+        /// <summary>
+        /// 「追加」ボタン押下時、入力されたアプリケーション情報を検証して登録します。
+        /// </summary>
         private void AddProgram_Click(object sender, RoutedEventArgs e)
         {
             string name = ProgramNameTextBox.Text?.Trim() ?? string.Empty;
@@ -127,12 +152,15 @@ namespace ImageManager
             _apps.Add(newApp);
             SaveApps();
 
-            // Clear input fields
+            // 入力欄をクリア
             ProgramNameTextBox.Text = string.Empty;
             ExecutablePathTextBox.Text = string.Empty;
             ArgumentsTextBox.Text = "{path}";
         }
 
+        /// <summary>
+        /// 登録済みアプリの削除ボタン押下時、リストから削除して設定を保存します。
+        /// </summary>
         private void DeleteApp_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is ExternalApp app)

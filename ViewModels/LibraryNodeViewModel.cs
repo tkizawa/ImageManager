@@ -5,21 +5,34 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ImageManager.ViewModels
 {
+    /// <summary>
+    /// カスタムライブラリグループおよびそれに含まれるフォルダツリーのノードを表現するViewModelクラス。
+    /// ライブラリノード（ルート）と所属フォルダノードの両方を階層管理します。
+    /// </summary>
     public partial class LibraryNodeViewModel : ObservableObject
     {
+        /// <summary>ノードの一意識別子（GUID）</summary>
         [ObservableProperty]
         private string _id = string.Empty;
 
+        /// <summary>ノードの表示名（ライブラリ名またはフォルダ名）</summary>
         [ObservableProperty]
         private string _name = string.Empty;
 
+        /// <summary>フォルダの絶対パス（ライブラリルートの場合は空文字列）</summary>
         [ObservableProperty]
         private string _fullPath = string.Empty;
 
+        /// <summary>ライブラリ自体（ルート）か、所属するフォルダかを表すフラグ</summary>
         [ObservableProperty]
         private bool _isLibrary = false;
 
         private bool _isExpanded;
+
+        /// <summary>
+        /// ツリーノードが展開されているかどうかを取得または設定します。
+        /// フォルダノード展開時にサブディレクトリを遅延読み込みします。
+        /// </summary>
         public bool IsExpanded
         {
             get => _isExpanded;
@@ -32,18 +45,28 @@ namespace ImageManager.ViewModels
             }
         }
 
+        /// <summary>UI表示用のアイコンUnicodeグリフ（ライブラリ: \uE8F1, フォルダ: \uE8B7）</summary>
         public string IconGlyph => IsLibrary ? "\uE8F1" : "\uE8B7";
 
+        /// <summary>親ライブラリノードへの参照</summary>
         public LibraryNodeViewModel? ParentLibrary { get; set; }
 
+        /// <summary>ライブラリ直下に登録されたトップレベルフォルダであるかどうか</summary>
         public bool IsTopLevelFolder => !IsLibrary && ParentLibrary != null && ParentLibrary.IsLibrary;
 
+        /// <summary>子ノード（サブフォルダ）のコレクション</summary>
         public ObservableCollection<LibraryNodeViewModel> Children { get; } = new();
 
+        /// <summary>
+        /// <see cref="LibraryNodeViewModel"/> クラスの新しいインスタンスを初期化します。
+        /// </summary>
         public LibraryNodeViewModel()
         {
         }
 
+        /// <summary>
+        /// サブディレクトリが存在する場合に展開アイコン（+）を表示させるためのダミー子ノードを追加します。
+        /// </summary>
         public void CheckAndAddDummyChild()
         {
             if (IsLibrary) return;
@@ -61,12 +84,15 @@ namespace ImageManager.ViewModels
             catch { }
         }
 
+        /// <summary>
+        /// フォルダ配下のサブディレクトリを遅延読み込みします。
+        /// </summary>
         public void LoadSubDirectories()
         {
             if (IsLibrary) return;
             if (string.IsNullOrEmpty(FullPath) || !Directory.Exists(FullPath)) return;
 
-            // If already loaded (dummy node removed), return
+            // 既に読み込み済みの場合はスキップ
             if (Children.Count > 0 && Children[0].Name != "Loading...")
                 return;
 
