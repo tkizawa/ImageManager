@@ -1081,14 +1081,15 @@ public partial class MainWindow : Window
                 "【ツリータブ】: ドライブやフォルダを階層表示。「フォルダを開く...」ボタンからも直接選択可能。",
                 "【お気に入りタブ】: よく使うフォルダを登録。ツリーや履歴の右クリックメニュー「お気に入りに追加」から追加。",
                 "【履歴タブ】: 直近で開いたフォルダ（最大20件）を自動記録。ワンクリックで移動、右クリックで削除。",
-                "【ライブラリタブ】: 複数のフォルダを任意の名前でグループ化して管理。「新規ライブラリ」から作成し、フォルダを追加可能。"
+                "【ライブラリタブ】: 複数のフォルダを任意の名前でグループ化して管理。「新規ライブラリ」から作成し、フォルダを追加可能。フォルダが移動された場合は「フォルダを再選択...」から追跡を更新できます。"
             }));
 
-            stack.Children.Add(CreateHelpSection("🖼️ サムネイル表示と選択・ズーム", new[]
+            stack.Children.Add(CreateHelpSection("🖼️ サムネイル表示と選択・ズーム・スクロール", new[]
             {
                 "【サムネイル表示】: 選択したフォルダ内の画像ファイルをグリッド一覧表示。",
                 "【複数選択】: 「Ctrl + クリック」で複数画像を選択・解除。「Shift + クリック」で範囲選択、「Ctrl + A」で全選択。",
                 "【ズーム操作】: 「Ctrl + マウスホイール」でサムネイルの拡大・縮小が可能。",
+                "【ドラッグスクロール】: サムネイル一覧の余白や画像をマウスドラッグ（左クリックまたは中クリック）することでスムーズにスクロール操作が可能。",
                 "【並び替え】: 「更新日」「撮影日」「レート」順、昇順／降順でソート切り替え。"
             }));
 
@@ -1133,10 +1134,11 @@ public partial class MainWindow : Window
                 "【閉じる】: Escキー。"
             }));
 
-            stack.Children.Add(CreateHelpSection("🤖 AI自動分類", new[]
+            stack.Children.Add(CreateHelpSection("🤖 AI自動分類 (Ollama / ONNX DirectML / ルールベース)", new[]
             {
                 "【AI自動分類】: ヘッダーの「AI自動分類」ボタンからダイアログを起動。",
-                "【自動判別・分類】: ONNX Runtime（GPU/CPU）または色調・特徴解析により画像を主要カテゴリー（人物・風景・動物・食べ物・乗り物・建物・文書）に判定し、「サブフォルダにコピー」「サブフォルダに移動」「タグ付与のみ」を選択して一括処理。"
+                "【マルチAIエンジン対応】: OllamaローカルVLM（LLaVA / Moondream等）、ONNX DirectML（GPU加速/CPU）、または色調・特徴解析から判定エンジンを選択可能。",
+                "【自動判別・分類】: 主要カテゴリー（人物・風景・動物・食べ物・乗り物・建物・文書）に判定し、「サブフォルダにコピー」「サブフォルダに移動」「タグ付与のみ」を選択して一括処理。"
             }));
 
             stack.Children.Add(CreateHelpSection("📷 RAW画像 (CR3 / ORF / NEF / ARW 等) の高画質プレビュー", new[]
@@ -1171,14 +1173,15 @@ public partial class MainWindow : Window
                 "[Folders Tab]: View drive and folder hierarchies. Or click 'Open Folder...' to select a directory.",
                 "[Favorites Tab]: Access saved favorite folders. Right-click folders in Tree or History to add.",
                 "[History Tab]: Auto-saves recently opened folders (up to 20). Click to reopen, right-click to remove.",
-                "[Library Tab]: Group and manage multiple folders. Click 'New Library' to create a group and add folders."
+                "[Library Tab]: Group and manage multiple folders. Click 'New Library' to create a group and add folders. If a folder was moved, use 'Re-select Folder...' to update its path."
             }));
 
-            stack.Children.Add(CreateHelpSection("🖼️ Thumbnails & Selection", new[]
+            stack.Children.Add(CreateHelpSection("🖼️ Thumbnails, Selection & Scrolling", new[]
             {
                 "[Thumbnails]: Displays all supported image files in the current folder.",
                 "[Multi-Selection]: Hold Ctrl + Click to toggle multiple images. Shift + Click for range selection, Ctrl + A to select all.",
                 "[Zoom]: Press Ctrl + Mouse Wheel over the list to resize thumbnail icons.",
+                "[Drag Scrolling]: Left or middle-click and drag across the thumbnail grid for smooth scrolling.",
                 "[Sorting]: Sort images by Modified Date, Date Taken, or Rating (Ascending / Descending)."
             }));
 
@@ -1236,10 +1239,11 @@ public partial class MainWindow : Window
                 "[Launch]: Right-click any photo and select 'Open with...' to launch with the selected editor."
             }));
 
-            stack.Children.Add(CreateHelpSection("🤖 AI Auto-Classification", new[]
+            stack.Children.Add(CreateHelpSection("🤖 AI Auto-Classification (Ollama / ONNX DirectML / Rule-based)", new[]
             {
                 "[AI Auto-Classification]: Click 'AI Auto Classification' button in the toolbar.",
-                "[Automatic Categorization]: Classify images into People, Landscape, Animal, Food, Vehicle, Building, Document via ONNX Runtime GPU/CPU and copy/move to subfolders."
+                "[Multi-Engine]: Choose between local Ollama Vision models (LLaVA/Moondream), ONNX DirectML (GPU/CPU), or color/feature analysis.",
+                "[Automatic Categorization]: Classify images into People, Landscape, Animal, Food, Vehicle, Building, Document and copy/move to subfolders or tag."
             }));
 
             stack.Children.Add(CreateHelpSection("💾 Thumbnail Cache Management", new[]
