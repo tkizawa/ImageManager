@@ -56,8 +56,9 @@ public partial class App : Application
     {
         try 
         {
-            // 言語オーバーライドのリセット（OS言語設定に準拠）
-            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = string.Empty;
+            // WinUI 3 では PrimaryLanguageOverride = string.Empty に設定すると COMException が発生します。
+            // 既定でOSの言語設定に準拠するため、この行はコメントアウトします。
+            // Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = string.Empty;
 
             Services.AppLogService.Log("=== ImageManager Application Started ===");
 
