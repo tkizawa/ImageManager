@@ -997,43 +997,34 @@ namespace ImageManager.Services
             // バイト配列からストリームを介してUIスレッドでBitmapImageに設定
             void SetSourceFromBytesOnUI(byte[] bytes)
             {
-                if (dq != null && !dq.HasThreadAccess)
+                async Task SetSourceCoreAsync()
                 {
-                    dq.TryEnqueue(async () =>
+                    try
                     {
-                        try
+                        using var stream = new InMemoryRandomAccessStream();
+                        using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
                         {
-                            using var stream = new InMemoryRandomAccessStream();
-                            using var writer = new DataWriter(stream.GetOutputStreamAt(0));
                             writer.WriteBytes(bytes);
                             await writer.StoreAsync();
-                            stream.Seek(0);
-                            await bitmapImage.SetSourceAsync(stream);
+                            await writer.FlushAsync();
+                            writer.DetachStream();
                         }
-                        catch { }
-                    });
+                        stream.Seek(0);
+                        await bitmapImage.SetSourceAsync(stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLogService.LogException("RawThumbnailService.SetSourceFromBytesOnUI", ex);
+                    }
+                }
+
+                if (dq != null && !dq.HasThreadAccess)
+                {
+                    dq.TryEnqueue(async () => await SetSourceCoreAsync());
                 }
                 else
                 {
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            using var stream = new InMemoryRandomAccessStream();
-                            using var writer = new DataWriter(stream.GetOutputStreamAt(0));
-                            writer.WriteBytes(bytes);
-                            await writer.StoreAsync();
-                            stream.Seek(0);
-                            if (dq != null)
-                            {
-                                dq.TryEnqueue(async () =>
-                                {
-                                    try { await bitmapImage.SetSourceAsync(stream); } catch { }
-                                });
-                            }
-                        }
-                        catch { }
-                    });
+                    _ = SetSourceCoreAsync();
                 }
             }
 

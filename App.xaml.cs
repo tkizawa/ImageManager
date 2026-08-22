@@ -27,10 +27,23 @@ public partial class App : Application
     {
         this.InitializeComponent();
 
-        // 未処理の例外をキャッチしてクラッシュログに出力
+        // 1. WinUI 3 XAML / UIスレッドの未処理例外ハンドラ
         this.UnhandledException += (s, e) =>
         {
-            System.IO.File.WriteAllText("crash.log", e.Exception?.ToString() + "\n" + e.Message);
+            Services.AppLogService.LogFatalCrash("WinUI.UnhandledException", e.Exception ?? (object)e.Message);
+        };
+
+        // 2. バックグラウンドスレッド / CLR レベルの未処理例外ハンドラ
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            Services.AppLogService.LogFatalCrash("AppDomain.UnhandledException", e.ExceptionObject);
+        };
+
+        // 3. Task の await 取りこぼし例外ハンドラ
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, e) =>
+        {
+            Services.AppLogService.LogFatalCrash("TaskScheduler.UnobservedTaskException", e.Exception);
+            e.SetObserved(); // プロセス強制終了を回避
         };
     }
 
@@ -43,6 +56,8 @@ public partial class App : Application
     {
         try 
         {
+            Services.AppLogService.Log("=== ImageManager Application Started ===");
+
             // UIスレッドのディスパッチャを取得
             MainDispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
@@ -58,7 +73,7 @@ public partial class App : Application
         catch (System.Exception ex)
         {
             // 起動時の致命的エラーをログに記録
-            System.IO.File.WriteAllText("crash.log", ex.ToString());
+            Services.AppLogService.LogFatalCrash("App.OnLaunched", ex);
         }
     }
 }

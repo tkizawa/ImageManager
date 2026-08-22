@@ -57,7 +57,7 @@ public partial class MainWindow : Window
             _appWindow.SetIcon("Assets\\AppIcon.ico");
             _appWindow.Closing += AppWindow_Closing;
         } catch (System.Exception ex) {
-            System.IO.File.WriteAllText("crash_main.log", ex.ToString());
+            Services.AppLogService.LogException("MainWindow.Constructor", ex);
         }
     }
 
@@ -1030,7 +1030,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            System.IO.File.WriteAllText("crash.log", ex.ToString());
+            Services.AppLogService.LogException("MainWindow.HelpButton_Click", ex);
         }
     }
 
@@ -1063,7 +1063,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            System.IO.File.WriteAllText("crash_classify.log", ex.ToString());
+            Services.AppLogService.LogException("MainWindow.ClassifyButton_Click", ex);
         }
     }
 
@@ -1165,6 +1165,21 @@ public partial class MainWindow : Window
                 "【設定メニュー】: 画面左上の「設定（歯車）」ボタンからドロップダウンメニューを開きます。",
                 "【バックアップ・復元】: 「設定のエクスポート...」「設定のインポート...」でお気に入りや履歴、外部プログラム設定、データベースをファイルとして保存・復元。"
             }));
+
+            // トラブルシューティングおよびログフォルダ参照ボタン
+            var logSection = CreateHelpSection("📋 ログ・トラブルシューティング", new[]
+            {
+                "【ログの確認】: アプリの動作ログおよびクラッシュ情報は AppData\\Local\\ImageManager\\Logs に安全に記録されます。",
+                "【問題の報告】: 不具合や予期せぬ終了が発生した場合は、ログフォルダ内の crash.log や app.log を添付してお問い合わせください。"
+            });
+            var openLogBtn = new Button
+            {
+                Content = "📁 ログフォルダを開く",
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            openLogBtn.Click += (s, e) => Services.AppLogService.OpenLogFolder();
+            logSection.Children.Add(openLogBtn);
+            stack.Children.Add(logSection);
         }
         else
         {
@@ -1258,6 +1273,21 @@ public partial class MainWindow : Window
                 "[Settings Menu]: Click the gear icon on the top-left toolbar.",
                 "[Export / Import]: Backup and restore favorites, history, external apps, and database as a ZIP archive."
             }));
+
+            // Troubleshooting and Open Log Folder Button (EN)
+            var logSectionEn = CreateHelpSection("📋 Logs & Troubleshooting", new[]
+            {
+                "[Logs Location]: Diagnostic logs and crash logs are safely stored in AppData\\Local\\ImageManager\\Logs.",
+                "[Report an Issue]: If you encounter unexpected crashes or issues, please attach crash.log or app.log from the logs folder."
+            });
+            var openLogBtnEn = new Button
+            {
+                Content = "📁 Open Logs Folder",
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            openLogBtnEn.Click += (s, e) => Services.AppLogService.OpenLogFolder();
+            logSectionEn.Children.Add(openLogBtnEn);
+            stack.Children.Add(logSectionEn);
         }
 
         return stack;

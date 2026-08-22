@@ -36,7 +36,7 @@ namespace ImageManager.Services
         public DatabaseService(string? customDbPath = null)
         {
             _dbPath = customDbPath ?? GetDatabasePath();
-            _connectionString = $"Data Source={_dbPath}";
+            _connectionString = $"Data Source={_dbPath};Default Timeout=5";
             InitializeDatabase();
         }
 
@@ -86,17 +86,27 @@ namespace ImageManager.Services
         /// </summary>
         private void ExecuteCreateTables()
         {
-            using var conn = new SqliteConnection(_connectionString);
-            conn.Open();
+            try
+            {
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
 
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS Libraries (
-                    LibraryId TEXT PRIMARY KEY,
-                    Name TEXT NOT NULL,
-                    RootPath TEXT NOT NULL,
-                    CreatedAt TEXT NOT NULL
-                );
+                using var pragmaCmd = conn.CreateCommand();
+                pragmaCmd.CommandText = @"
+                    PRAGMA journal_mode = WAL;
+                    PRAGMA synchronous = NORMAL;
+                    PRAGMA busy_timeout = 5000;
+                ";
+                pragmaCmd.ExecuteNonQuery();
+
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS Libraries (
+                        LibraryId TEXT PRIMARY KEY,
+                        Name TEXT NOT NULL,
+                        RootPath TEXT NOT NULL,
+                        CreatedAt TEXT NOT NULL
+                    );
 
                 CREATE TABLE IF NOT EXISTS Images (
                     ImageId TEXT PRIMARY KEY,
@@ -143,6 +153,15 @@ namespace ImageManager.Services
             ";
             cmd.ExecuteNonQuery();
         }
+        catch (SqliteException)
+        {
+            throw; // InitializeDatabase 側で SQLITE_CORRUPT 等をキャッチして再生成するため再スロー
+        }
+        catch (Exception ex)
+        {
+            AppLogService.LogException("DatabaseService.ExecuteCreateTables", ex);
+        }
+    }
 
         #region File Hash Computation
         /// <summary>
