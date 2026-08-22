@@ -907,7 +907,120 @@ public partial class MainWindow : Window
         RootGrid.ColumnDefinitions[2].Width = ParseGridLength(settings.ThumbnailsColumnWidth, new GridLength(2, GridUnitType.Star));
         RootGrid.ColumnDefinitions[4].Width = ParseGridLength(settings.PreviewColumnWidth, new GridLength(1, GridUnitType.Star));
 
+        // ナビゲーションタブの配置順と選択状態を復元
+        RestoreNavigationTabOrder(settings);
+
         _ = ViewModel.InitializeAsync();
+    }
+
+    /// <summary>
+    /// ナビゲーションタブの配置順および選択状態を設定から復元します。
+    /// </summary>
+    private void RestoreNavigationTabOrder(Models.AppSettings settings)
+    {
+        try
+        {
+            if (settings.NavigationTabOrder != null && settings.NavigationTabOrder.Count > 0)
+            {
+                var tabMap = new Dictionary<string, TabViewItem>();
+                foreach (var item in NavigationTabView.TabItems.OfType<TabViewItem>())
+                {
+                    if (item.Tag is string tag)
+                    {
+                        tabMap[tag] = item;
+                    }
+                }
+
+                var orderedItems = new List<TabViewItem>();
+                foreach (var tag in settings.NavigationTabOrder)
+                {
+                    if (tabMap.TryGetValue(tag, out var tabItem))
+                    {
+                        orderedItems.Add(tabItem);
+                        tabMap.Remove(tag);
+                    }
+                }
+                // リストに含まれていなかったタブを末尾に追加
+                foreach (var remaining in tabMap.Values)
+                {
+                    orderedItems.Add(remaining);
+                }
+
+                NavigationTabView.TabItems.Clear();
+                foreach (var tab in orderedItems)
+                {
+                    NavigationTabView.TabItems.Add(tab);
+                }
+            }
+
+            // 前回選択タブの復元
+            if (!string.IsNullOrEmpty(settings.SelectedNavigationTab))
+            {
+                var selectedTab = NavigationTabView.TabItems.OfType<TabViewItem>().FirstOrDefault(t => (t.Tag as string) == settings.SelectedNavigationTab);
+                if (selectedTab != null)
+                {
+                    NavigationTabView.SelectedItem = selectedTab;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Services.AppLogService.LogException("RestoreNavigationTabOrder", ex);
+        }
+    }
+
+    /// <summary>
+    /// 現在のナビゲーションタブ配置順および選択状態を設定オブジェクトに反映します。
+    /// </summary>
+    private void SaveNavigationTabOrder(Models.AppSettings settings)
+    {
+        try
+        {
+            var order = new List<string>();
+            foreach (var item in NavigationTabView.TabItems.OfType<TabViewItem>())
+            {
+                if (item.Tag is string tag)
+                {
+                    order.Add(tag);
+                }
+            }
+            settings.NavigationTabOrder = order;
+
+            if (NavigationTabView.SelectedItem is TabViewItem selectedTab && selectedTab.Tag is string selTag)
+            {
+                settings.SelectedNavigationTab = selTag;
+            }
+        }
+        catch (Exception ex)
+        {
+            Services.AppLogService.LogException("SaveNavigationTabOrder", ex);
+        }
+    }
+
+    /// <summary>
+    /// タブのドラッグ並び替え完了時、新しい配置順を設定へ即座に保存します。
+    /// </summary>
+    private void NavigationTabView_TabDragCompleted(TabView sender, TabViewTabDragCompletedEventArgs args)
+    {
+        var settings = _settingsService.Load();
+        SaveNavigationTabOrder(settings);
+        _settingsService.Save(settings);
+    }
+
+    /// <summary>
+    /// ナビゲーションタブの選択変更時、選択されたタブを設定へ保存します。
+    /// </summary>
+    private void NavigationTabView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (NavigationTabView.SelectedItem is TabViewItem selectedTab && selectedTab.Tag is string selTag)
+        {
+            var settings = _settingsService.Load();
+            if (settings.SelectedNavigationTab != selTag)
+            {
+                settings.SelectedNavigationTab = selTag;
+                _settingsService.Save(settings);
+            }
+        }
     }
 
     /// <summary>
@@ -988,6 +1101,9 @@ public partial class MainWindow : Window
         {
             settings.SelectedImageFilePath = ViewModel.SelectedImage.FilePath;
         }
+
+        // タブ配置順と選択タブの保存
+        SaveNavigationTabOrder(settings);
 
         _settingsService.Save(settings);
     }

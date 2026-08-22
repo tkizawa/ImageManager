@@ -178,5 +178,27 @@ namespace ImageManager.Tests
             Assert.Equal(14, loadedSettings.CacheCleanPeriodDays);
             Assert.Equal(5368709120, loadedSettings.CacheCleanMaxSizeBytes);
         }
+
+        [Fact]
+        public void SaveAndLoad_PersistsNavigationTabOrderAndSelectedTab()
+        {
+            var service = new SettingsService(_tempSettingsFilePath);
+            var settingsToSave = new AppSettings
+            {
+                NavigationTabOrder = new() { "Library", "Folder", "Favorites", "History" },
+                SelectedNavigationTab = "Library"
+            };
+
+            service.Save(settingsToSave);
+            var loadedSettings = service.Load();
+
+            Assert.NotNull(loadedSettings);
+            Assert.Equal(4, loadedSettings.NavigationTabOrder.Count);
+            Assert.Equal("Library", loadedSettings.NavigationTabOrder[0]);
+            Assert.Equal("Folder", loadedSettings.NavigationTabOrder[1]);
+            Assert.Equal("Favorites", loadedSettings.NavigationTabOrder[2]);
+            Assert.Equal("History", loadedSettings.NavigationTabOrder[3]);
+            Assert.Equal("Library", loadedSettings.SelectedNavigationTab);
+        }
     }
 }

@@ -7,9 +7,9 @@
   IgnorableNamespaces="uap uap10 rescap">
 
   <Identity
-    Name="57742TomokazuKizawa.WoodStreamImageManager"
-    Publisher="CN=963B8572-7B10-48CC-9F90-46F0022D6A68"
-    Version="1.1.2.0" />
+    Name="34978tkizawa.WoodStreamImageManager"
+    Publisher="CN=E6FA5F02-127E-4467-93C0-F91A808DE1B4"
+    Version="1.1.3.0" />
 
   <Properties>
     <DisplayName>WoodStream ImageManager</DisplayName>

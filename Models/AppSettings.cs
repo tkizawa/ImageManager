@@ -92,6 +92,12 @@ namespace ImageManager.Models
 
         /// <summary>キャッシュクリーンアップ時の上限サイズ（バイト単位）</summary>
         public long CacheCleanMaxSizeBytes { get; set; } = 1073741824; // 1 GB
+
+        /// <summary>ナビゲーションタブの配置順（Tag識別子のリスト。例: ["Library", "Folder", "Favorites", "History"]）</summary>
+        public System.Collections.Generic.List<string> NavigationTabOrder { get; set; } = new();
+
+        /// <summary>前回選択されていたナビゲーションタブの識別子（例: "Folder", "Library" 等）</summary>
+        public string SelectedNavigationTab { get; set; } = string.Empty;
     }
 }
 

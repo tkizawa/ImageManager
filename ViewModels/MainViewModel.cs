@@ -40,7 +40,7 @@ namespace ImageManager.ViewModels
         }
 
         /// <summary>アセンブリから取得したアプリケーションバージョン文字列</summary>
-        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.2.0"}";
+        public string AppVersion => $"Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.3.0"}";
 
         /// <summary>現在表示中の画像ファイル一覧コレクション</summary>
         [ObservableProperty]
@@ -756,10 +756,20 @@ namespace ImageManager.ViewModels
                 string libId = GetFolderLibraryId(folderPath);
 
                 // DBキャッシュから1回のクエリでメタデータ（お気に入り・レーティング・Exif撮影日等）を高速マージ
-                var cachedMap = _databaseService.GetFolderImageRecordsMap(folderPath);
+                var cachedMap = _databaseService.GetFolderImageRecordsMap(folderPath, libId);
                 foreach (var img in newImages)
                 {
-                    if (cachedMap.TryGetValue(img.FilePath, out var rec))
+                    DatabaseService.CachedImageRecord? rec = null;
+                    if (cachedMap.TryGetValue(img.FilePath, out var r1))
+                    {
+                        rec = r1;
+                    }
+                    else if (cachedMap.TryGetValue(img.FileName, out var r2))
+                    {
+                        rec = r2;
+                    }
+
+                    if (rec != null)
                     {
                         img.IsFavorite = rec.IsFavorite;
                         if (rec.Rating > 0 && img.Rating == 0)

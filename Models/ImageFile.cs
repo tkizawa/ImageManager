@@ -90,7 +90,10 @@ namespace ImageManager.Models
                 {
                     DatabaseService.Instance.UpdateImageFavorite(FilePath, value);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Services.AppLogService.LogException("ImageFile.OnIsFavoriteChanged", ex);
+                }
             }
         }
 
@@ -121,7 +124,10 @@ namespace ImageManager.Models
                 {
                     DatabaseService.Instance.UpdateImageRating(FilePath, _rating);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Services.AppLogService.LogException("ImageFile.OnRatingChanged", ex);
+                }
             }
         }
 

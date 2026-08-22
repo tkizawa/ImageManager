@@ -85,9 +85,18 @@
         </Grid>
 
         <!-- Left Pane (Tabs) -->
-        <TabView Grid.Row="1" Grid.Column="0" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+        <TabView x:Name="NavigationTabView" Grid.Row="1" Grid.Column="0" 
+                 IsAddTabButtonVisible="False" 
+                 CanReorderTabs="True" 
+                 CanDragTabs="True"
+                 TabDragCompleted="NavigationTabView_TabDragCompleted"
+                 SelectionChanged="NavigationTabView_SelectionChanged"
+                 TabWidthMode="SizeToContent" 
+                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                 BorderThickness="1">
             <!-- フォルダタブ (ツリー) -->
-            <TabViewItem x:Uid="FolderTab" IsClosable="False">
+            <TabViewItem x:Name="FolderTabItem" x:Uid="FolderTab" Tag="Folder" IsClosable="False">
                 <TreeView x:Name="FolderTreeView"
                           ItemsSource="{Binding Folders}"
                           ItemInvoked="FolderTreeView_ItemInvoked">
@@ -110,7 +119,7 @@
             </TabViewItem>
 
             <!-- お気に入りタブ -->
-            <TabViewItem x:Uid="FavoritesTab" IsClosable="False">
+            <TabViewItem x:Name="FavoritesTabItem" x:Uid="FavoritesTab" Tag="Favorites" IsClosable="False">
                 <ListView ItemsSource="{Binding FavoriteFolders}" 
                           SelectionMode="Single"
                           IsItemClickEnabled="True"
@@ -137,7 +146,7 @@
             </TabViewItem>
 
             <!-- 履歴タブ -->
-            <TabViewItem x:Uid="HistoryTab" IsClosable="False">
+            <TabViewItem x:Name="HistoryTabItem" x:Uid="HistoryTab" Tag="History" IsClosable="False">
                 <ListView ItemsSource="{Binding HistoryFolders}" 
                           SelectionMode="Single"
                           IsItemClickEnabled="True"
@@ -167,7 +176,7 @@
             </TabViewItem>
 
             <!-- ライブラリタブ -->
-            <TabViewItem x:Uid="LibraryTab" IsClosable="False">
+            <TabViewItem x:Name="LibraryTabItem" x:Uid="LibraryTab" Tag="Library" IsClosable="False">
                 <Grid Margin="0,5,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
