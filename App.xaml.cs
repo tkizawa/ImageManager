@@ -56,6 +56,9 @@ public partial class App : Application
     {
         try 
         {
+            // 言語オーバーライドのリセット（OS言語設定に準拠）
+            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = string.Empty;
+
             Services.AppLogService.Log("=== ImageManager Application Started ===");
 
             // UIスレッドのディスパッチャを取得
