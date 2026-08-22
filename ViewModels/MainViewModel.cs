@@ -455,7 +455,6 @@ namespace ImageManager.ViewModels
             {
                 _dispatcherQueue = null;
             }
-            LoadDrives();
         }
 
         /// <summary>
@@ -479,6 +478,8 @@ namespace ImageManager.ViewModels
         /// </summary>
         public async Task InitializeAsync()
         {
+            await LoadDrivesAsync();
+
             var settings = _settingsService.Load();
             
             if (settings.ThumbnailSize > 0)
@@ -627,52 +628,65 @@ namespace ImageManager.ViewModels
         /// <summary>
         /// システム内の準備完了状態の全ドライブ（固定・リムーバブル・ネットワーク）を列挙しツリーに追加します。
         /// </summary>
-        private void LoadDrives()
+        private async Task LoadDrivesAsync()
         {
             try
             {
-                foreach (var drive in System.IO.DriveInfo.GetDrives())
+                var drivesInfo = await Task.Run(() =>
                 {
-                    if (drive.IsReady)
+                    var list = new List<(string Name, string DisplayName)>();
+                    foreach (var drive in System.IO.DriveInfo.GetDrives())
                     {
-                        string volumeLabel = string.Empty;
-                        try
+                        if (drive.IsReady)
                         {
-                            volumeLabel = drive.VolumeLabel;
-                        }
-                        catch { }
-
-                        string driveLetter = drive.Name.TrimEnd('\\');
-                        string displayName;
-
-                        if (!string.IsNullOrWhiteSpace(volumeLabel))
-                        {
-                            displayName = $"{volumeLabel} ({driveLetter})";
-                        }
-                        else
-                        {
-                            string shellDisplayName = GetShellDisplayName(drive.Name);
-                            if (!string.IsNullOrWhiteSpace(shellDisplayName))
+                            string volumeLabel = string.Empty;
+                            try
                             {
-                                displayName = shellDisplayName;
+                                volumeLabel = drive.VolumeLabel;
+                            }
+                            catch { }
+
+                            string driveLetter = drive.Name.TrimEnd('\\');
+                            string displayName;
+
+                            if (!string.IsNullOrWhiteSpace(volumeLabel))
+                            {
+                                displayName = $"{volumeLabel} ({driveLetter})";
                             }
                             else
                             {
-                                string defaultLabel = drive.DriveType switch
+                                string shellDisplayName = GetShellDisplayName(drive.Name);
+                                if (!string.IsNullOrWhiteSpace(shellDisplayName))
                                 {
-                                    DriveType.Fixed => "ローカル ディスク",
-                                    DriveType.Removable => "USB ドライブ",
-                                    DriveType.CDRom => "CD ドライブ",
-                                    DriveType.Network => "ネットワーク ドライブ",
-                                    _ => "ローカル ディスク"
-                                };
-                                displayName = $"{defaultLabel} ({driveLetter})";
+                                    displayName = shellDisplayName;
+                                }
+                                else
+                                {
+                                    string defaultLabel = drive.DriveType switch
+                                    {
+                                        DriveType.Fixed => "ローカル ディスク",
+                                        DriveType.Removable => "USB ドライブ",
+                                        DriveType.CDRom => "CD ドライブ",
+                                        DriveType.Network => "ネットワーク ドライブ",
+                                        _ => "ローカル ディスク"
+                                    };
+                                    displayName = $"{defaultLabel} ({driveLetter})";
+                                }
                             }
-                        }
 
-                        Folders.Add(new DirectoryNodeViewModel(drive.Name, displayName));
+                            list.Add((drive.Name, displayName));
+                        }
                     }
-                }
+                    return list;
+                });
+
+                RunOnUIThread(() =>
+                {
+                    foreach (var info in drivesInfo)
+                    {
+                        Folders.Add(new DirectoryNodeViewModel(info.Name, info.DisplayName));
+                    }
+                });
             }
             catch { }
         }
