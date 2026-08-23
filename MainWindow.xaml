@@ -314,6 +314,12 @@
                         <TextBlock Text="貼り付け" />
                     </StackPanel>
                 </Button>
+                <Button x:Name="ToolbarPasteImageButton" Click="PasteImage_Click" Padding="8,4" Margin="5,0,0,0" ToolTipService.ToolTip="クリップボードから画像を貼り付け">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <FontIcon Glyph="&#xE91B;" FontSize="13"/>
+                        <TextBlock Text="クリップボードから貼り付け" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <!-- Thumbnail Grid -->

@@ -736,7 +736,7 @@ namespace ImageManager.ViewModels
         /// 指定フォルダ内の画像を読み込みます。
         /// </summary>
         /// <param name="folderPath">フォルダパス</param>
-        private async Task LoadImagesAsync(string folderPath)
+        public async Task LoadImagesAsync(string folderPath)
         {
             var task = LoadImagesInternalAsync(folderPath);
             CurrentLoadTask = task;

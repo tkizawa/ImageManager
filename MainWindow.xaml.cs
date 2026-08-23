@@ -620,6 +620,38 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void PasteImage_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(ViewModel.CurrentFolderPath) || !System.IO.Directory.Exists(ViewModel.CurrentFolderPath))
+            return;
+
+        try
+        {
+            var clipContent = Windows.ApplicationModel.DataTransfer.Clipboard.GetContent();
+            if (clipContent != null && clipContent.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Bitmap))
+            {
+                var bitmapStreamRef = await clipContent.GetBitmapAsync();
+                using var stream = await bitmapStreamRef.OpenReadAsync();
+                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+                
+                string fileName = $"clipboard-{DateTime.Now:yyyy-MM-dd-HHmmss}.png";
+                string filePath = System.IO.Path.Combine(ViewModel.CurrentFolderPath, fileName);
+                
+                using (var fileStream = System.IO.File.Create(filePath))
+                {
+                    var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(fileStream));
+                    var pixelData = await decoder.GetPixelDataAsync();
+                    encoder.SetPixelData(decoder.BitmapPixelFormat, decoder.BitmapAlphaMode, decoder.PixelWidth, decoder.PixelHeight, decoder.DpiX, decoder.DpiY, pixelData.DetachPixelData());
+                    await encoder.FlushAsync();
+                }
+
+                await ViewModel.LoadImagesAsync(ViewModel.CurrentFolderPath);
+                ShowNotification("CopySuccessTitle", "画像として貼り付けました", 1);
+            }
+        }
+        catch { }
+    }
+
     private async Task CopySelectedToFolderAsync()
     {
         var selected = ThumbnailGridView.SelectedItems.OfType<Models.ImageFile>().Select(i => i.FilePath).ToList();
