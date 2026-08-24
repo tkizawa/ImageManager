@@ -329,6 +329,39 @@
                       SelectionChanged="ThumbnailGridView_SelectionChanged"
                       DoubleTapped="ThumbnailGridView_DoubleTapped"
                       Padding="5">
+                <GridView.ContextFlyout>
+                    <MenuFlyout Opening="ThumbnailArea_ContextFlyout_Opening">
+                        <MenuFlyoutItem x:Name="AreaPasteMenuItem"
+                                        x:Uid="PasteMenu" 
+                                        Click="Paste_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE77F;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem x:Name="AreaPasteImageMenuItem"
+                                        x:Uid="PasteImageMenu" 
+                                        Click="PasteImage_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE91B;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem x:Name="AreaRefreshMenuItem"
+                                        x:Uid="RefreshMenu" 
+                                        Click="Refresh_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE72C;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem x:Name="AreaSelectAllMenuItem"
+                                        x:Uid="SelectAllMenu" 
+                                        Click="SelectAll_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8B3;"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </GridView.ContextFlyout>
                 <GridView.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="5" Width="{Binding DataContext.ThumbnailPanelWidth, ElementName=RootGrid}">

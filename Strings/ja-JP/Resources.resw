@@ -229,6 +229,15 @@
   <data name="PasteMenu.Text" xml:space="preserve">
     <value>貼り付け</value>
   </data>
+  <data name="PasteImageMenu.Text" xml:space="preserve">
+    <value>画像として貼り付け</value>
+  </data>
+  <data name="RefreshMenu.Text" xml:space="preserve">
+    <value>最新の情報に更新</value>
+  </data>
+  <data name="SelectAllMenu.Text" xml:space="preserve">
+    <value>すべて選択</value>
+  </data>
   <data name="CopyToFolderMenu.Text" xml:space="preserve">
     <value>フォルダへコピー...</value>
   </data>
@@ -258,6 +267,12 @@
   </data>
   <data name="CopySuccessMessage" xml:space="preserve">
     <value>{0} 件の画像をコピーしました。</value>
+  </data>
+  <data name="PasteImageSuccessTitle" xml:space="preserve">
+    <value>貼り付け完了</value>
+  </data>
+  <data name="PasteImageSuccessMessage" xml:space="preserve">
+    <value>クリップボードの画像を保存しました。</value>
   </data>
   <data name="MoveSuccessTitle" xml:space="preserve">
     <value>移動完了</value>

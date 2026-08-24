@@ -420,6 +420,55 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ThumbnailArea_ContextFlyout_Opening(object sender, object e)
+    {
+        bool hasFolder = !string.IsNullOrEmpty(ViewModel.CurrentFolderPath) && System.IO.Directory.Exists(ViewModel.CurrentFolderPath);
+        bool canPasteFiles = false;
+        bool canPasteImage = false;
+
+        if (hasFolder)
+        {
+            if (ViewModel.ClipboardFilePaths.Count > 0)
+            {
+                canPasteFiles = true;
+            }
+
+            try
+            {
+                var clipContent = Windows.ApplicationModel.DataTransfer.Clipboard.GetContent();
+                if (clipContent != null)
+                {
+                    if (clipContent.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
+                    {
+                        canPasteFiles = true;
+                    }
+                    if (clipContent.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Bitmap))
+                    {
+                        canPasteImage = true;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        if (AreaPasteMenuItem != null)
+        {
+            AreaPasteMenuItem.IsEnabled = hasFolder && (canPasteFiles || canPasteImage);
+        }
+        if (AreaPasteImageMenuItem != null)
+        {
+            AreaPasteImageMenuItem.IsEnabled = hasFolder && canPasteImage;
+        }
+        if (AreaSelectAllMenuItem != null)
+        {
+            AreaSelectAllMenuItem.IsEnabled = ViewModel.Images.Count > 0;
+        }
+        if (AreaRefreshMenuItem != null)
+        {
+            AreaRefreshMenuItem.IsEnabled = hasFolder;
+        }
+    }
+
     private void PopulateExternalAppsMenu(MenuFlyoutSubItem subMenu, Models.ImageFile imageFile)
     {
         subMenu.Items.Clear();
@@ -617,13 +666,22 @@ public partial class MainWindow : Window
             bool wasCut = ViewModel.IsClipboardCut;
             int count = await ViewModel.PasteFromClipboardAsync();
             ShowNotification(wasCut ? "MoveSuccessTitle" : "CopySuccessTitle", wasCut ? "MoveSuccessMessage" : "CopySuccessMessage", count);
+            return;
         }
+
+        // クリップボードに画像データ（Bitmap）がある場合は画像として貼り付け
+        await PasteBitmapFromClipboardAsync();
     }
 
     private async void PasteImage_Click(object sender, RoutedEventArgs e)
     {
+        await PasteBitmapFromClipboardAsync();
+    }
+
+    private async Task<bool> PasteBitmapFromClipboardAsync()
+    {
         if (string.IsNullOrEmpty(ViewModel.CurrentFolderPath) || !System.IO.Directory.Exists(ViewModel.CurrentFolderPath))
-            return;
+            return false;
 
         try
         {
@@ -633,10 +691,10 @@ public partial class MainWindow : Window
                 var bitmapStreamRef = await clipContent.GetBitmapAsync();
                 using var stream = await bitmapStreamRef.OpenReadAsync();
                 var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
-                
+
                 string fileName = $"clipboard-{DateTime.Now:yyyy-MM-dd-HHmmss}.png";
                 string filePath = System.IO.Path.Combine(ViewModel.CurrentFolderPath, fileName);
-                
+
                 using (var fileStream = System.IO.File.Create(filePath))
                 {
                     var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(fileStream));
@@ -646,10 +704,29 @@ public partial class MainWindow : Window
                 }
 
                 await ViewModel.LoadImagesAsync(ViewModel.CurrentFolderPath);
-                ShowNotification("CopySuccessTitle", "画像として貼り付けました", 1);
+                ShowNotification("PasteImageSuccessTitle", "PasteImageSuccessMessage", 1);
+                return true;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to paste image: {ex}");
+        }
+
+        return false;
+    }
+
+    private void SelectAll_Click(object sender, RoutedEventArgs e)
+    {
+        ThumbnailGridView.SelectAll();
+    }
+
+    private async void Refresh_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(ViewModel.CurrentFolderPath) && System.IO.Directory.Exists(ViewModel.CurrentFolderPath))
+        {
+            await ViewModel.LoadImagesAsync(ViewModel.CurrentFolderPath);
+        }
     }
 
     private async Task CopySelectedToFolderAsync()
@@ -753,7 +830,7 @@ public partial class MainWindow : Window
             }
             else if (e.Key == Windows.System.VirtualKey.V)
             {
-                if (ViewModel.CanPaste)
+                if (!string.IsNullOrEmpty(ViewModel.CurrentFolderPath) && System.IO.Directory.Exists(ViewModel.CurrentFolderPath))
                 {
                     e.Handled = true;
                     await PasteImagesAsync();
@@ -767,6 +844,15 @@ public partial class MainWindow : Window
                     e.Handled = true;
                     ThumbnailGridView.SelectAll();
                 }
+            }
+        }
+        else if (e.Key == Windows.System.VirtualKey.F5)
+        {
+            var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(RootGrid.XamlRoot);
+            if (focused is not TextBox && !string.IsNullOrEmpty(ViewModel.CurrentFolderPath) && System.IO.Directory.Exists(ViewModel.CurrentFolderPath))
+            {
+                e.Handled = true;
+                await ViewModel.LoadImagesAsync(ViewModel.CurrentFolderPath);
             }
         }
         else if (e.Key == Windows.System.VirtualKey.Delete)

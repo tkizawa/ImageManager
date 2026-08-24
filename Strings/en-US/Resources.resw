@@ -229,6 +229,15 @@
   <data name="PasteMenu.Text" xml:space="preserve">
     <value>Paste</value>
   </data>
+  <data name="PasteImageMenu.Text" xml:space="preserve">
+    <value>Paste as Image</value>
+  </data>
+  <data name="RefreshMenu.Text" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="SelectAllMenu.Text" xml:space="preserve">
+    <value>Select All</value>
+  </data>
   <data name="CopyToFolderMenu.Text" xml:space="preserve">
     <value>Copy to Folder...</value>
   </data>
@@ -254,10 +263,16 @@
     <value>No image selected</value>
   </data>
   <data name="CopySuccessTitle" xml:space="preserve">
-    <value>Copy Complete</value>
+    <value>Copy Completed</value>
   </data>
   <data name="CopySuccessMessage" xml:space="preserve">
-    <value>Successfully copied {0} images.</value>
+    <value>Copied {0} image(s).</value>
+  </data>
+  <data name="PasteImageSuccessTitle" xml:space="preserve">
+    <value>Paste Completed</value>
+  </data>
+  <data name="PasteImageSuccessMessage" xml:space="preserve">
+    <value>Image from clipboard has been saved.</value>
   </data>
   <data name="MoveSuccessTitle" xml:space="preserve">
     <value>Move Complete</value>
